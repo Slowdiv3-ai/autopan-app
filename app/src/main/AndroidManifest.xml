@@ -2,11 +2,13 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.autopan.app">
 
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
     <application
         android:allowBackup="true"
         android:icon="@android:drawable/ic_media_play"
-        android:label="Auto Pan Toggle"
-        android:theme="@style/Theme.AppCompat">
+        android:label="Auto Pan Toggle">
         
         <activity
             android:name=".MainActivity"
@@ -16,6 +18,12 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        
+        <service
+            android:name=".PanService"
+            android:exported="false"
+            android:foregroundServiceType="mediaPlayback"/>
+        
     </application>
 
 </manifest>
