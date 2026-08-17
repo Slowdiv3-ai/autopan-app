@@ -63,14 +63,6 @@ class MainActivity : Activity() {
                 val speed = progress * 100
                 speedText.text = "Speed: ${speed}ms"
                 prefs.edit().putInt("speed", speed).apply()
-                
-                // Update service if running
-                if (PanService.isRunning) {
-                    val intent = Intent(this@MainActivity, PanService::class.java)
-                    intent.action = "UPDATE_SPEED"
-                    intent.putExtra("speed", speed)
-                    startService(intent)
-                }
             }
             
             override fun onStartTrackingTouch(seekBar: SeekBar?) {}
@@ -86,14 +78,6 @@ class MainActivity : Activity() {
                 else -> "smooth"
             }
             prefs.edit().putString("pattern", pattern).apply()
-            
-            // Update service if running
-            if (PanService.isRunning) {
-                val intent = Intent(this, PanService::class.java)
-                intent.action = "UPDATE_PATTERN"
-                intent.putExtra("pattern", pattern)
-                startService(intent)
-            }
         }
         
         toggleButton.setOnClickListener {
@@ -108,12 +92,20 @@ class MainActivity : Activity() {
     }
     
     private fun startPanning() {
-        val intent = Intent(this, PanService::class.java)
-        intent.action = "START"
-        startService(intent)
-        toggleButton.text = "STOP PAN"
-        statusText.text = "Status: ACTIVE"
-        statusText.setTextColor(Color.GREEN)
+        try {
+            val intent = Intent(this, PanService::class.java)
+            intent.action = "START"
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundService(intent)
+            } else {
+                startService(intent)
+            }
+            toggleButton.text = "STOP PAN"
+            statusText.text = "Status: ACTIVE"
+            statusText.setTextColor(Color.GREEN)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
     
     private fun stopPanning() {
@@ -145,8 +137,8 @@ class PanService : Service() {
     
     companion object {
         var isRunning = false
-        private var currentSpeed = 1000
-        private var currentPattern = "smooth"
+        var currentSpeed = 1000
+        var currentPattern = "smooth"
         
         private val patterns = mapOf(
             "smooth" to arrayOf(
@@ -198,13 +190,6 @@ class PanService : Service() {
             "STOP" -> {
                 stopPanning()
             }
-            "UPDATE_SPEED" -> {
-                currentSpeed = intent.getIntExtra("speed", 1000)
-            }
-            "UPDATE_PATTERN" -> {
-                currentPattern = intent.getStringExtra("pattern") ?: "smooth"
-                currentPosition = 0
-            }
         }
         return START_STICKY
     }
@@ -212,6 +197,12 @@ class PanService : Service() {
     private fun startPanning() {
         isRunning = true
         currentPosition = 0
+        
+        // Load preferences
+        val prefs = getSharedPreferences("pan_settings", Context.MODE_PRIVATE)
+        currentSpeed = prefs.getInt("speed", 1000)
+        currentPattern = prefs.getString("pattern", "smooth") ?: "smooth"
+        
         startForeground(1, createNotification())
         handler.post(panRunnable)
     }
@@ -240,7 +231,7 @@ class PanService : Service() {
     
     private fun createNotification() = NotificationCompat.Builder(this, "pan_service")
         .setContentTitle("Auto Pan Active")
-        .setContentText("Panning: $currentPattern at ${currentSpeed}ms")
+        .setContentText("Panning: $currentPattern")
         .setSmallIcon(android.R.drawable.ic_media_play)
         .setContentIntent(
             PendingIntent.getActivity(
