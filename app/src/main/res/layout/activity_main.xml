@@ -12,7 +12,6 @@
         android:padding="20dp">
         
         <TextView
-            android:id="@+id/titleText"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Auto Pan Control"
@@ -36,6 +35,31 @@
             android:text="START PAN"
             android:textSize="24sp"
             android:backgroundTint="#4CAF50"
+            android:layout_marginBottom="30dp"/>
+        
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Panning Speed:"
+            android:textSize="18sp"
+            android:textColor="#FFFFFF"
+            android:layout_marginBottom="10dp"/>
+        
+        <TextView
+            android:id="@+id/speedText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Speed: 1000ms"
+            android:textSize="14sp"
+            android:textColor="#BBBBBB"
+            android:layout_marginBottom="5dp"/>
+        
+        <SeekBar
+            android:id="@+id/speedSeekBar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:max="30"
+            android:progress="10"
             android:layout_marginBottom="30dp"/>
         
         <TextView
