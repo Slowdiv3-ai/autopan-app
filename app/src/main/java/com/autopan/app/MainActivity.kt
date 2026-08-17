@@ -1,15 +1,24 @@
 package com.autopan.app
 
+import android.app.Activity
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
+import android.app.Service
+import android.content.Context
+import android.content.Intent
+import android.graphics.Color
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
+import android.os.IBinder
 import android.os.Looper
 import android.widget.Button
-import android.widget.TextView
-import android.app.Activity
-import android.graphics.Color
-import android.widget.RadioGroup
 import android.widget.RadioButton
-import android.widget.LinearLayout
+import android.widget.RadioGroup
+import android.widget.SeekBar
+import android.widget.TextView
+import androidx.core.app.NotificationCompat
 import java.io.BufferedReader
 import java.io.InputStreamReader
 
@@ -18,48 +27,8 @@ class MainActivity : Activity() {
     private lateinit var toggleButton: Button
     private lateinit var statusText: TextView
     private lateinit var patternGroup: RadioGroup
-    private var isPanning = false
-    private val handler = Handler(Looper.getMainLooper())
-    
-    // Different panning patterns
-    private val patterns = mapOf(
-        "smooth" to arrayOf(
-            "-0.8", "-0.6", "-0.4", "-0.2", "0.0", 
-            "0.2", "0.4", "0.6", "0.8", "0.6", 
-            "0.4", "0.2", "0.0", "-0.2", "-0.4", "-0.6"
-        ),
-        "hard" to arrayOf(
-            "-0.8", "0.0", "0.8", "0.0", "-0.8"
-        ),
-        "wave" to arrayOf(
-            "-0.8", "-0.4", "0.0", "0.4", "0.8", 
-            "0.4", "0.0", "-0.4", "-0.8", "-0.4",
-            "0.0", "0.4", "0.8"
-        ),
-        "subtle" to arrayOf(
-            "-0.3", "-0.15", "0.0", "0.15", "0.3", 
-            "0.15", "0.0", "-0.15", "-0.3"
-        ),
-        "crazy" to arrayOf(
-            "-0.8", "0.8", "-0.4", "0.4", "-0.8",
-            "0.8", "-0.2", "0.2", "0.0", "-0.8"
-        )
-    )
-    
-    private var currentPattern = "smooth"
-    private var currentPosition = 0
-    
-    private val panRunnable = object : Runnable {
-        override fun run() {
-            if (isPanning) {
-                val pattern = patterns[currentPattern] ?: patterns["smooth"]!!
-                val balance = pattern[currentPosition % pattern.size]
-                executeRootCommand("settings put system master_balance $balance")
-                currentPosition++
-                handler.postDelayed(this, 1000)
-            }
-        }
-    }
+    private lateinit var speedSeekBar: SeekBar
+    private lateinit var speedText: TextView
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -68,62 +37,227 @@ class MainActivity : Activity() {
         toggleButton = findViewById(R.id.toggleButton)
         statusText = findViewById(R.id.statusText)
         patternGroup = findViewById(R.id.patternGroup)
+        speedSeekBar = findViewById(R.id.speedSeekBar)
+        speedText = findViewById(R.id.speedText)
         
-        // Set default pattern
-        val smoothRadio = findViewById<RadioButton>(R.id.radioSmooth)
-        smoothRadio.isChecked = true
+        // Load saved preferences
+        val prefs = getSharedPreferences("pan_settings", Context.MODE_PRIVATE)
+        val savedPattern = prefs.getString("pattern", "smooth") ?: "smooth"
+        val savedSpeed = prefs.getInt("speed", 1000)
+        
+        // Set saved pattern
+        when (savedPattern) {
+            "hard" -> findViewById<RadioButton>(R.id.radioHard).isChecked = true
+            "wave" -> findViewById<RadioButton>(R.id.radioWave).isChecked = true
+            "subtle" -> findViewById<RadioButton>(R.id.radioSubtle).isChecked = true
+            "crazy" -> findViewById<RadioButton>(R.id.radioCrazy).isChecked = true
+            else -> findViewById<RadioButton>(R.id.radioSmooth).isChecked = true
+        }
+        
+        // Set saved speed
+        speedSeekBar.progress = savedSpeed / 100
+        speedText.text = "Speed: ${savedSpeed}ms"
+        
+        speedSeekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                val speed = progress * 100
+                speedText.text = "Speed: ${speed}ms"
+                prefs.edit().putInt("speed", speed).apply()
+                
+                // Update service if running
+                if (PanService.isRunning) {
+                    val intent = Intent(this@MainActivity, PanService::class.java)
+                    intent.action = "UPDATE_SPEED"
+                    intent.putExtra("speed", speed)
+                    startService(intent)
+                }
+            }
+            
+            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+            override fun onStopTrackingTouch(seekBar: SeekBar?) {}
+        })
         
         patternGroup.setOnCheckedChangeListener { _, checkedId ->
-            currentPattern = when (checkedId) {
-                R.id.radioSmooth -> "smooth"
+            val pattern = when (checkedId) {
                 R.id.radioHard -> "hard"
                 R.id.radioWave -> "wave"
                 R.id.radioSubtle -> "subtle"
                 R.id.radioCrazy -> "crazy"
                 else -> "smooth"
             }
-            currentPosition = 0
+            prefs.edit().putString("pattern", pattern).apply()
+            
+            // Update service if running
+            if (PanService.isRunning) {
+                val intent = Intent(this, PanService::class.java)
+                intent.action = "UPDATE_PATTERN"
+                intent.putExtra("pattern", pattern)
+                startService(intent)
+            }
         }
         
         toggleButton.setOnClickListener {
-            if (isPanning) {
+            if (PanService.isRunning) {
                 stopPanning()
             } else {
                 startPanning()
             }
         }
+        
+        updateUI()
     }
     
     private fun startPanning() {
-        isPanning = true
-        currentPosition = 0
+        val intent = Intent(this, PanService::class.java)
+        intent.action = "START"
+        startService(intent)
         toggleButton.text = "STOP PAN"
-        statusText.text = "Status: ACTIVE - ${currentPattern.uppercase()}"
+        statusText.text = "Status: ACTIVE"
         statusText.setTextColor(Color.GREEN)
+    }
+    
+    private fun stopPanning() {
+        val intent = Intent(this, PanService::class.java)
+        intent.action = "STOP"
+        startService(intent)
+        updateUI()
+    }
+    
+    private fun updateUI() {
+        if (PanService.isRunning) {
+            toggleButton.text = "STOP PAN"
+            statusText.text = "Status: ACTIVE"
+            statusText.setTextColor(Color.GREEN)
+        } else {
+            toggleButton.text = "START PAN"
+            statusText.text = "Status: OFF"
+            statusText.setTextColor(Color.RED)
+        }
+    }
+    
+    override fun onResume() {
+        super.onResume()
+        updateUI()
+    }
+}
+
+class PanService : Service() {
+    
+    companion object {
+        var isRunning = false
+        private var currentSpeed = 1000
+        private var currentPattern = "smooth"
+        
+        private val patterns = mapOf(
+            "smooth" to arrayOf(
+                "-0.8", "-0.6", "-0.4", "-0.2", "0.0",
+                "0.2", "0.4", "0.6", "0.8", "0.6",
+                "0.4", "0.2", "0.0", "-0.2", "-0.4", "-0.6"
+            ),
+            "hard" to arrayOf("-0.8", "0.0", "0.8", "0.0"),
+            "wave" to arrayOf(
+                "-0.8", "-0.4", "0.0", "0.4", "0.8",
+                "0.4", "0.0", "-0.4"
+            ),
+            "subtle" to arrayOf(
+                "-0.3", "-0.15", "0.0", "0.15", "0.3",
+                "0.15", "0.0", "-0.15"
+            ),
+            "crazy" to arrayOf(
+                "-0.8", "0.8", "-0.4", "0.4", "-0.8",
+                "0.8", "-0.2", "0.2", "0.0"
+            )
+        )
+    }
+    
+    private val handler = Handler(Looper.getMainLooper())
+    private var currentPosition = 0
+    
+    private val panRunnable = object : Runnable {
+        override fun run() {
+            if (isRunning) {
+                val pattern = patterns[currentPattern] ?: patterns["smooth"]!!
+                val balance = pattern[currentPosition % pattern.size]
+                executeRootCommand("settings put system master_balance $balance")
+                currentPosition++
+                handler.postDelayed(this, currentSpeed.toLong())
+            }
+        }
+    }
+    
+    override fun onCreate() {
+        super.onCreate()
+        createNotificationChannel()
+    }
+    
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        when (intent?.action) {
+            "START" -> {
+                startPanning()
+            }
+            "STOP" -> {
+                stopPanning()
+            }
+            "UPDATE_SPEED" -> {
+                currentSpeed = intent.getIntExtra("speed", 1000)
+            }
+            "UPDATE_PATTERN" -> {
+                currentPattern = intent.getStringExtra("pattern") ?: "smooth"
+                currentPosition = 0
+            }
+        }
+        return START_STICKY
+    }
+    
+    private fun startPanning() {
+        isRunning = true
+        currentPosition = 0
+        startForeground(1, createNotification())
         handler.post(panRunnable)
     }
     
     private fun stopPanning() {
-        isPanning = false
+        isRunning = false
         executeRootCommand("settings put system master_balance 0.0")
-        toggleButton.text = "START PAN"
-        statusText.text = "Status: OFF"
-        statusText.setTextColor(Color.RED)
+        stopForeground(true)
+        stopSelf()
     }
+    
+    private fun createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                "pan_service",
+                "Auto Pan Service",
+                NotificationManager.IMPORTANCE_LOW
+            ).apply {
+                description = "Keeps auto-pan running"
+                setShowBadge(false)
+            }
+            val notificationManager = getSystemService(NotificationManager::class.java)
+            notificationManager.createNotificationChannel(channel)
+        }
+    }
+    
+    private fun createNotification() = NotificationCompat.Builder(this, "pan_service")
+        .setContentTitle("Auto Pan Active")
+        .setContentText("Panning: $currentPattern at ${currentSpeed}ms")
+        .setSmallIcon(android.R.drawable.ic_media_play)
+        .setContentIntent(
+            PendingIntent.getActivity(
+                this,
+                0,
+                Intent(this, MainActivity::class.java),
+                PendingIntent.FLAG_IMMUTABLE
+            )
+        )
+        .setOngoing(true)
+        .build()
     
     private fun executeRootCommand(command: String) {
         Thread {
             try {
                 val process = Runtime.getRuntime().exec(arrayOf("su", "-c", command))
-                val reader = BufferedReader(InputStreamReader(process.inputStream))
-                val errorReader = BufferedReader(InputStreamReader(process.errorStream))
-                
-                reader.readLine()
-                errorReader.readLine()
-                
                 process.waitFor()
-                reader.close()
-                errorReader.close()
             } catch (e: Exception) {
                 e.printStackTrace()
             }
@@ -132,8 +266,9 @@ class MainActivity : Activity() {
     
     override fun onDestroy() {
         super.onDestroy()
-        if (isPanning) {
-            stopPanning()
-        }
+        isRunning = false
+        executeRootCommand("settings put system master_balance 0.0")
     }
+    
+    override fun onBind(intent: Intent?): IBinder? = null
 }
