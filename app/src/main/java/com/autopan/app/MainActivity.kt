@@ -5,11 +5,12 @@ import android.os.Handler
 import android.os.Looper
 import android.widget.Button
 import android.widget.TextView
-import androidx.appcompat.app.AppCompatActivity
+import android.app.Activity
+import android.graphics.Color
 import java.io.BufferedReader
 import java.io.InputStreamReader
 
-class MainActivity : AppCompatActivity() {
+class MainActivity : Activity() {
     
     private lateinit var toggleButton: Button
     private lateinit var statusText: TextView
@@ -55,7 +56,7 @@ class MainActivity : AppCompatActivity() {
         currentPosition = 0
         toggleButton.text = "STOP PAN"
         statusText.text = "Status: ACTIVE"
-        statusText.setTextColor(android.graphics.Color.GREEN)
+        statusText.setTextColor(Color.GREEN)
         handler.post(panRunnable)
     }
     
@@ -64,7 +65,7 @@ class MainActivity : AppCompatActivity() {
         executeRootCommand("settings put system master_balance 0.0")
         toggleButton.text = "START PAN"
         statusText.text = "Status: OFF"
-        statusText.setTextColor(android.graphics.Color.RED)
+        statusText.setTextColor(Color.RED)
     }
     
     private fun executeRootCommand(command: String) {
