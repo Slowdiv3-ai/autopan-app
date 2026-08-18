@@ -1,7 +1,6 @@
 package com.autopan.app
 
 import android.app.Activity
-import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -12,7 +11,6 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.widget.Button
-import android.widget.CompoundButton
 import android.widget.LinearLayout
 import android.widget.RadioButton
 import android.widget.RadioGroup
@@ -31,7 +29,6 @@ class MainActivity : Activity() {
     private lateinit var speedSeekBar: SeekBar
     private lateinit var speedText: TextView
     private lateinit var customContainer: LinearLayout
-    private lateinit var customVisual: TextView
     private lateinit var slidersContainer: LinearLayout
     private lateinit var bluetoothSwitch: Switch
     private val customSeekBars = mutableListOf<SeekBar>()
@@ -116,7 +113,6 @@ class MainActivity : Activity() {
         speedSeekBar = findViewById(R.id.speedSeekBar)
         speedText = findViewById(R.id.speedText)
         customContainer = findViewById(R.id.customContainer)
-        customVisual = findViewById(R.id.customVisual)
         slidersContainer = findViewById(R.id.slidersContainer)
         bluetoothSwitch = findViewById(R.id.bluetoothSwitch)
         
@@ -141,6 +137,7 @@ class MainActivity : Activity() {
         bluetoothSwitch.isChecked = bluetoothAutoPan
         
         createCustomSliders()
+        createGraphDots()
         customContainer.visibility = if (currentPattern == "custom") LinearLayout.VISIBLE else LinearLayout.GONE
         
         speedSeekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
@@ -189,7 +186,6 @@ class MainActivity : Activity() {
             }
         }
         
-        // Register Bluetooth receiver
         val filter = IntentFilter().apply {
             addAction(BluetoothDevice.ACTION_ACL_CONNECTED)
             addAction(BluetoothDevice.ACTION_ACL_DISCONNECTED)
@@ -197,7 +193,9 @@ class MainActivity : Activity() {
         registerReceiver(bluetoothReceiver, filter)
         
         updateUI()
-        updateVisual()
+        
+        // Delay updateVisual to ensure layout is measured
+        handler.postDelayed({ updateVisual() }, 100)
     }
     
     private fun createCustomSliders() {
@@ -255,6 +253,33 @@ class MainActivity : Activity() {
         }
     }
     
+    private fun createGraphDots() {
+        val graphArea = findViewById<LinearLayout>(R.id.graphArea)
+        graphArea.removeAllViews()
+        
+        for (i in 0 until 8) {
+            val row = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    0,
+                    1f
+                )
+                gravity = android.view.Gravity.CENTER_VERTICAL
+            }
+            
+            val dot = TextView(this).apply {
+                text = "${i + 1}"
+                textSize = 12f
+                setTextColor(Color.parseColor("#00BCD4"))
+                tag = i
+            }
+            
+            row.addView(dot)
+            graphArea.addView(row)
+        }
+    }
+    
     private fun applyPreset(presetName: String) {
         val preset = presets[presetName] ?: return
         customPattern = preset
@@ -269,40 +294,36 @@ class MainActivity : Activity() {
         updateVisual()
         Toast.makeText(this, "Preset applied: ${presetName.capitalize()}", Toast.LENGTH_SHORT).show()
     }
-           private fun updateVisual() {
-        val dotIds = intArrayOf(
-            R.id.graphDot1, R.id.graphDot2, R.id.graphDot3, R.id.graphDot4,
-            R.id.graphDot5, R.id.graphDot6, R.id.graphDot7, R.id.graphDot8
-        )
+    
+    private fun updateVisual() {
+        val graphArea = findViewById<LinearLayout>(R.id.graphArea)
+        val graphWidth = graphArea.width
         
-        val rowWidth = findViewById<LinearLayout>(R.id.graphRow1).width
-        
-        for (i in 0 until customPattern.size) {
-            val dot = findViewById<TextView>(dotIds[i])
-            val value = customPattern[i].toFloat()
-            
-            // Calculate horizontal position (0 = left, 1 = right)
-            val position = (value + 0.8) / 1.6
-            val leftMargin = (position * rowWidth * 0.9).toInt()
-            
-            // Update dot position using layout params
-            val params = dot.layoutParams as LinearLayout.LayoutParams
-            params.leftMargin = leftMargin
-            dot.layoutParams = params
-            
-            // Color code the dot
-            when {
-                value < -0.4 -> dot.setTextColor(Color.parseColor("#FF5722")) // Strong left - red
-                value < -0.1 -> dot.setTextColor(Color.parseColor("#FF9800")) // Mild left - orange
-                value > 0.4 -> dot.setTextColor(Color.parseColor("#4CAF50")) // Strong right - green
-                value > 0.1 -> dot.setTextColor(Color.parseColor("#8BC34A")) // Mild right - light green
-                else -> dot.setTextColor(Color.parseColor("#FFFFFF")) // Center - white
+        if (graphWidth > 0) {
+            for (i in 0 until graphArea.childCount) {
+                val row = graphArea.getChildAt(i) as LinearLayout
+                if (row.childCount > 0) {
+                    val dot = row.getChildAt(0) as TextView
+                    val value = customPattern[i].toFloat()
+                    
+                    val position = (value + 0.8) / 1.6
+                    val leftMargin = (position * (graphWidth - 40)).toInt()
+                    
+                    val params = dot.layoutParams as LinearLayout.LayoutParams
+                    params.leftMargin = leftMargin
+                    dot.layoutParams = params
+                    
+                    when {
+                        value < -0.4 -> dot.setTextColor(Color.parseColor("#FF5722"))
+                        value < -0.1 -> dot.setTextColor(Color.parseColor("#FF9800"))
+                        value > 0.4 -> dot.setTextColor(Color.parseColor("#4CAF50"))
+                        value > 0.1 -> dot.setTextColor(Color.parseColor("#8BC34A"))
+                        else -> dot.setTextColor(Color.WHITE)
+                    }
+                }
             }
         }
     }
-       
-    
-    
     
     private fun saveCustomPattern() {
         val values = customPattern.joinToString(",")
