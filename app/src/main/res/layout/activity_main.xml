@@ -1,164 +1,118 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:padding="20dp"
     android:background="#121212">
     
-    <LinearLayout
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Auto Pan Control"
+        android:textSize="28sp"
+        android:textColor="#FFFFFF"
+        android:layout_marginBottom="20dp"/>
+    
+    <TextView
+        android:id="@+id/statusText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Status: OFF"
+        android:textSize="20sp"
+        android:textColor="#FF4444"
+        android:layout_marginBottom="20dp"/>
+    
+    <Button
+        android:id="@+id/toggleButton"
+        android:layout_width="200dp"
+        android:layout_height="200dp"
+        android:text="START PAN"
+        android:textSize="24sp"
+        android:backgroundTint="#4CAF50"
+        android:layout_marginBottom="30dp"/>
+    
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Panning Speed:"
+        android:textSize="18sp"
+        android:textColor="#FFFFFF"
+        android:layout_marginBottom="10dp"/>
+    
+    <TextView
+        android:id="@+id/speedText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Speed: 1000ms"
+        android:textSize="14sp"
+        android:textColor="#BBBBBB"
+        android:layout_marginBottom="5dp"/>
+    
+    <SeekBar
+        android:id="@+id/speedSeekBar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:max="30"
+        android:progress="10"
+        android:layout_marginBottom="30dp"/>
+    
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Select Pattern:"
+        android:textSize="20sp"
+        android:textColor="#FFFFFF"
+        android:layout_marginBottom="10dp"/>
+    
+    <RadioGroup
+        android:id="@+id/patternGroup"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:gravity="center"
-        android:padding="20dp">
+        android:padding="10dp">
         
-        <TextView
+        <RadioButton
+            android:id="@+id/radioSmooth"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Auto Pan Control"
-            android:textSize="28sp"
+            android:text="Smooth"
             android:textColor="#FFFFFF"
-            android:layout_marginBottom="20dp"/>
+            android:buttonTint="#4CAF50"/>
         
-        <TextView
-            android:id="@+id/statusText"
+        <RadioButton
+            android:id="@+id/radioHard"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Status: OFF"
-            android:textSize="20sp"
-            android:textColor="#FF4444"
-            android:layout_marginBottom="20dp"/>
-        
-        <Button
-            android:id="@+id/toggleButton"
-            android:layout_width="200dp"
-            android:layout_height="200dp"
-            android:text="START PAN"
-            android:textSize="24sp"
-            android:backgroundTint="#4CAF50"
-            android:layout_marginBottom="30dp"/>
-        
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Bluetooth Auto-Pan:"
-            android:textSize="18sp"
+            android:text="Hard Left/Right"
             android:textColor="#FFFFFF"
-            android:layout_marginBottom="10dp"/>
+            android:buttonTint="#FF9800"/>
         
-        <Switch
-            android:id="@+id/bluetoothSwitch"
+        <RadioButton
+            android:id="@+id/radioWave"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text=""
-            android:layout_marginBottom="30dp"/>
-        
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Panning Speed:"
-            android:textSize="18sp"
+            android:text="Wave"
             android:textColor="#FFFFFF"
-            android:layout_marginBottom="10dp"/>
+            android:buttonTint="#2196F3"/>
         
-        <TextView
-            android:id="@+id/speedText"
+        <RadioButton
+            android:id="@+id/radioSubtle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Speed: 1000ms"
-            android:textSize="14sp"
-            android:textColor="#BBBBBB"
-            android:layout_marginBottom="5dp"/>
-        
-        <SeekBar
-            android:id="@+id/speedSeekBar"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:max="30"
-            android:progress="10"
-            android:layout_marginBottom="30dp"/>
-        
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Select Pattern:"
-            android:textSize="20sp"
+            android:text="Subtle"
             android:textColor="#FFFFFF"
-            android:layout_marginBottom="10dp"/>
+            android:buttonTint="#9C27B0"/>
         
-        <RadioGroup
-            android:id="@+id/patternGroup"
-            android:layout_width="match_parent"
+        <RadioButton
+            android:id="@+id/radioCrazy"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:padding="10dp">
-            
-            <RadioButton
-                android:id="@+id/radioSmooth"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Smooth (default)"
-                android:textColor="#FFFFFF"
-                android:buttonTint="#4CAF50"/>
-            
-            <RadioButton
-                android:id="@+id/radioHard"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Hard Left/Right"
-                android:textColor="#FFFFFF"
-                android:buttonTint="#FF9800"/>
-            
-            <RadioButton
-                android:id="@+id/radioWave"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Wave"
-                android:textColor="#FFFFFF"
-                android:buttonTint="#2196F3"/>
-            
-            <RadioButton
-                android:id="@+id/radioSubtle"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Subtle (gentle)"
-                android:textColor="#FFFFFF"
-                android:buttonTint="#9C27B0"/>
-            
-            <RadioButton
-                android:id="@+id/radioCrazy"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Crazy (random jumps)"
-                android:textColor="#FFFFFF"
-                android:buttonTint="#F44336"/>
-            
-            <RadioButton
-                android:id="@+id/radioCustom"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Custom Pattern"
-                android:textColor="#FFFFFF"
-                android:buttonTint="#00BCD4"/>
-            
-        </RadioGroup>
+            android:text="Crazy"
+            android:textColor="#FFFFFF"
+            android:buttonTint="#F44336"/>
         
-        <LinearLayout
-            android:id="@+id/customPatternContainer"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:visibility="gone"
-            android:padding="10dp">
-            
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Custom Pattern (adjust sliders):"
-                android:textSize="16sp"
-                android:textColor="#00BCD4"
-                android:layout_marginBottom="10dp"/>
-            
-        </LinearLayout>
-        
-    </LinearLayout>
-</ScrollView>
+    </RadioGroup>
+    
+</LinearLayout>
