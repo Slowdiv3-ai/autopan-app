@@ -269,30 +269,38 @@ class MainActivity : Activity() {
         updateVisual()
         Toast.makeText(this, "Preset applied: ${presetName.capitalize()}", Toast.LENGTH_SHORT).show()
     }
-        private fun updateVisual() {
-        val currentValue = customPattern[0].toFloat()
+           private fun updateVisual() {
+        val dotIds = intArrayOf(
+            R.id.graphDot1, R.id.graphDot2, R.id.graphDot3, R.id.graphDot4,
+            R.id.graphDot5, R.id.graphDot6, R.id.graphDot7, R.id.graphDot8
+        )
         
-        // Update left/right zone indicators
-        val leftZone = findViewById<TextView>(R.id.leftZoneIndicator)
-        val rightZone = findViewById<TextView>(R.id.rightZoneIndicator)
+        val rowWidth = findViewById<LinearLayout>(R.id.graphRow1).width
         
-        if (currentValue < 0) {
-            leftZone.text = "●"
-            rightZone.text = ""
-        } else if (currentValue > 0) {
-            leftZone.text = ""
-            rightZone.text = "●"
-        } else {
-            leftZone.text = ""
-            rightZone.text = ""
+        for (i in 0 until customPattern.size) {
+            val dot = findViewById<TextView>(dotIds[i])
+            val value = customPattern[i].toFloat()
+            
+            // Calculate horizontal position (0 = left, 1 = right)
+            val position = (value + 0.8) / 1.6
+            val leftMargin = (position * rowWidth * 0.9).toInt()
+            
+            // Update dot position using layout params
+            val params = dot.layoutParams as LinearLayout.LayoutParams
+            params.leftMargin = leftMargin
+            dot.layoutParams = params
+            
+            // Color code the dot
+            when {
+                value < -0.4 -> dot.setTextColor(Color.parseColor("#FF5722")) // Strong left - red
+                value < -0.1 -> dot.setTextColor(Color.parseColor("#FF9800")) // Mild left - orange
+                value > 0.4 -> dot.setTextColor(Color.parseColor("#4CAF50")) // Strong right - green
+                value > 0.1 -> dot.setTextColor(Color.parseColor("#8BC34A")) // Mild right - light green
+                else -> dot.setTextColor(Color.parseColor("#FFFFFF")) // Center - white
+            }
         }
-        
-        // Update the position marker (center: 20 spaces)
-        val position = ((currentValue + 0.8) / 1.6 * 40).toInt()
-        val leftSpaces = " ".repeat(position.coerceAtMost(39))
-        val rightSpaces = " ".repeat((39 - position).coerceAtLeast(0))
-        customVisual.text = "$leftSpaces●$rightSpaces"
     }
+       
     
     
     
