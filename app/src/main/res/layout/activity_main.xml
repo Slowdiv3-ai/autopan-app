@@ -37,14 +37,6 @@
             android:backgroundTint="#4CAF50"
             android:layout_marginBottom="20dp"/>
         
-        <Button
-            android:id="@+id/accessibilityButton"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Enable Accessibility Toggle"
-            android:textSize="14sp"
-            android:backgroundTint="#FF9800"
-            android:layout_marginBottom="20dp"/>
         
         <TextView
             android:layout_width="wrap_content"
