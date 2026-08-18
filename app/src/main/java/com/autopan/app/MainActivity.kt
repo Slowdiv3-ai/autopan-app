@@ -11,7 +11,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.graphics.Color
-import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -39,7 +38,7 @@ class MainActivity : Activity() {
     private lateinit var slidersContainer: LinearLayout
     private lateinit var bluetoothSwitch: Switch
     private lateinit var smoothSwitch: Switch
-    private lateinit var floatingButtonToggle: Button
+    private lateinit var accessibilityButton: Button
     private val customSeekBars = mutableListOf<SeekBar>()
     private val sliderLabels = mutableListOf<TextView>()
     
@@ -51,7 +50,6 @@ class MainActivity : Activity() {
     private var customPattern = arrayOf("-0.5", "-0.25", "0.0", "0.25", "0.5", "0.25", "0.0", "-0.25")
     private var bluetoothAutoPan = false
     private var smoothAll = true
-    private var isFloatingButtonShowing = false
     
     private val patterns = mapOf(
         "smooth" to arrayOf(
@@ -154,7 +152,7 @@ class MainActivity : Activity() {
         slidersContainer = findViewById(R.id.slidersContainer)
         bluetoothSwitch = findViewById(R.id.bluetoothSwitch)
         smoothSwitch = findViewById(R.id.smoothSwitch)
-        floatingButtonToggle = findViewById(R.id.floatingButtonToggle)
+        accessibilityButton = findViewById(R.id.accessibilityButton)
         
         val prefs = getSharedPreferences("pan_settings", Context.MODE_PRIVATE)
         currentPattern = prefs.getString("pattern", "smooth") ?: "smooth"
@@ -233,26 +231,10 @@ class MainActivity : Activity() {
             }
         }
         
-        floatingButtonToggle.setOnClickListener {
-            val intent = Intent(this, FloatingButtonService::class.java)
-            if (isFloatingButtonShowing) {
-                stopService(intent)
-                isFloatingButtonShowing = false
-                floatingButtonToggle.text = "Show Floating Bubble"
-            } else {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                    if (!Settings.canDrawOverlays(this)) {
-                        val overlayIntent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION)
-                        overlayIntent.data = Uri.parse("package:$packageName")
-                        startActivity(overlayIntent)
-                        Toast.makeText(this, "Grant overlay permission to use floating bubble", Toast.LENGTH_LONG).show()
-                        return@setOnClickListener
-                    }
-                }
-                startService(intent)
-                isFloatingButtonShowing = true
-                floatingButtonToggle.text = "Hide Floating Bubble"
-            }
+        accessibilityButton.setOnClickListener {
+            val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
+            startActivity(intent)
+            Toast.makeText(this, "Enable Auto Pan Toggle in Accessibility settings", Toast.LENGTH_LONG).show()
         }
         
         val filter = IntentFilter().apply {
