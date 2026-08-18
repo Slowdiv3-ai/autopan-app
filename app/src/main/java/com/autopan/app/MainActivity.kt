@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.graphics.Color
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -18,8 +19,6 @@ import android.widget.SeekBar
 import android.widget.Switch
 import android.widget.TextView
 import android.widget.Toast
-import java.io.BufferedReader
-import java.io.InputStreamReader
 
 class MainActivity : Activity() {
     
@@ -35,9 +34,7 @@ class MainActivity : Activity() {
     private val customSeekBars = mutableListOf<SeekBar>()
     private val sliderLabels = mutableListOf<TextView>()
     
-    private var isPanning = false
     private val handler = Handler(Looper.getMainLooper())
-    private var currentPosition = 0
     private var currentSpeed = 1000
     private var currentPattern = "smooth"
     private var customPattern = arrayOf("-0.5", "-0.25", "0.0", "0.25", "0.5", "0.25", "0.0", "-0.25")
@@ -71,64 +68,18 @@ class MainActivity : Activity() {
         "circle" to arrayOf("-0.8", "-0.4", "0.0", "0.4", "0.8", "0.4", "0.0", "-0.4")
     )
     
-    private val panRunnable = object : Runnable {
-        private var currentBalance = 0.0f
-        private var targetBalance = 0.0f
-        private var smoothingSteps = 10
-        private var stepCount = 0
-        
-        override fun run() {
-            if (isPanning) {
-                if (smoothAll && stepCount < smoothingSteps && stepCount > 0) {
-                    // Smooth interpolation
-                    currentBalance += (targetBalance - currentBalance) / (smoothingSteps - stepCount)
-                    stepCount++
-                    executeRootCommand("settings put system master_balance ${String.format("%.2f", currentBalance)}")
-                    handler.postDelayed(this, (currentSpeed / smoothingSteps).toLong())
-                } else {
-                    // Get next target
-                    val pattern = when (currentPattern) {
-                        "custom" -> customPattern
-                        else -> patterns[currentPattern] ?: patterns["smooth"]!!
-                    }
-                    targetBalance = pattern[currentPosition % pattern.size].toFloat()
-                    
-                    if (smoothAll) {
-                        // Calculate smoothing steps
-                        smoothingSteps = when {
-                            currentSpeed <= 500 -> 5
-                            currentSpeed <= 1000 -> 8
-                            currentSpeed <= 2000 -> 12
-                            else -> 16
-                        }
-                        stepCount = 1
-                        currentBalance += (targetBalance - currentBalance) * 0.3f
-                        executeRootCommand("settings put system master_balance ${String.format("%.2f", currentBalance)}")
-                    } else {
-                        // No smoothing - direct
-                        currentBalance = targetBalance
-                        executeRootCommand("settings put system master_balance ${String.format("%.2f", currentBalance)}")
-                    }
-                    
-                    currentPosition++
-                    handler.postDelayed(this, (currentSpeed / (if (smoothAll) smoothingSteps else 1)).toLong())
-                }
-            }
-        }
-    }
-    
     private val bluetoothReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             when (intent?.action) {
                 BluetoothDevice.ACTION_ACL_CONNECTED -> {
-                    if (bluetoothAutoPan && !isPanning) {
-                        startPanning()
+                    if (bluetoothAutoPan && !PanService.isRunning) {
+                        startPanService()
                         Toast.makeText(this@MainActivity, "Bluetooth connected - Panning started", Toast.LENGTH_SHORT).show()
                     }
                 }
                 BluetoothDevice.ACTION_ACL_DISCONNECTED -> {
-                    if (bluetoothAutoPan && isPanning) {
-                        stopPanning()
+                    if (bluetoothAutoPan && PanService.isRunning) {
+                        stopPanService()
                         Toast.makeText(this@MainActivity, "Bluetooth disconnected - Panning stopped", Toast.LENGTH_SHORT).show()
                     }
                 }
@@ -196,7 +147,6 @@ class MainActivity : Activity() {
                 else -> "smooth"
             }
             prefs.edit().putString("pattern", currentPattern).apply()
-            currentPosition = 0
             customContainer.visibility = if (currentPattern == "custom") LinearLayout.VISIBLE else LinearLayout.GONE
         }
         
@@ -208,11 +158,6 @@ class MainActivity : Activity() {
         smoothSwitch.setOnCheckedChangeListener { _, isChecked ->
             smoothAll = isChecked
             prefs.edit().putBoolean("smooth_all", isChecked).apply()
-            if (isChecked) {
-                Toast.makeText(this, "Smooth mode ON", Toast.LENGTH_SHORT).show()
-            } else {
-                Toast.makeText(this, "Raw mode ON", Toast.LENGTH_SHORT).show()
-            }
         }
         
         findViewById<Button>(R.id.presetSmooth).setOnClickListener { applyPreset("smooth") }
@@ -220,10 +165,10 @@ class MainActivity : Activity() {
         findViewById<Button>(R.id.presetCircle).setOnClickListener { applyPreset("circle") }
         
         toggleButton.setOnClickListener {
-            if (isPanning) {
-                stopPanning()
+            if (PanService.isRunning) {
+                stopPanService()
             } else {
-                startPanning()
+                startPanService()
             }
         }
         
@@ -371,46 +316,43 @@ class MainActivity : Activity() {
             .apply()
     }
     
-    private fun startPanning() {
-        isPanning = true
-        currentPosition = 0
-        toggleButton.text = "STOP PAN"
-        statusText.text = "Status: ACTIVE - ${currentPattern.uppercase()}"
-        statusText.setTextColor(Color.GREEN)
-        handler.post(panRunnable)
+    private fun startPanService() {
+        val intent = Intent(this, PanService::class.java)
+        intent.action = "START"
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            startForegroundService(intent)
+        } else {
+            startService(intent)
+        }
+        updateUI()
     }
     
-    private fun stopPanning() {
-        isPanning = false
-        handler.removeCallbacks(panRunnable)
-        executeRootCommand("settings put system master_balance 0.0")
-        toggleButton.text = "START PAN"
-        statusText.text = "Status: OFF"
-        statusText.setTextColor(Color.RED)
+    private fun stopPanService() {
+        val intent = Intent(this, PanService::class.java)
+        intent.action = "STOP"
+        startService(intent)
+        updateUI()
     }
     
     private fun updateUI() {
-        toggleButton.text = if (isPanning) "STOP PAN" else "START PAN"
-        statusText.text = if (isPanning) "Status: ACTIVE" else "Status: OFF"
-        statusText.setTextColor(if (isPanning) Color.GREEN else Color.RED)
+        if (PanService.isRunning) {
+            toggleButton.text = "STOP PAN"
+            statusText.text = "Status: ACTIVE"
+            statusText.setTextColor(Color.GREEN)
+        } else {
+            toggleButton.text = "START PAN"
+            statusText.text = "Status: OFF"
+            statusText.setTextColor(Color.RED)
+        }
     }
     
-    private fun executeRootCommand(command: String) {
-        Thread {
-            try {
-                val process = Runtime.getRuntime().exec(arrayOf("su", "-c", command))
-                process.waitFor()
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-        }.start()
+    override fun onResume() {
+        super.onResume()
+        updateUI()
     }
     
     override fun onDestroy() {
         super.onDestroy()
-        if (isPanning) {
-            stopPanning()
-        }
         try {
             unregisterReceiver(bluetoothReceiver)
         } catch (e: Exception) {
