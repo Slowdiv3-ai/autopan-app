@@ -269,13 +269,32 @@ class MainActivity : Activity() {
         updateVisual()
         Toast.makeText(this, "Preset applied: ${presetName.capitalize()}", Toast.LENGTH_SHORT).show()
     }
-    
-    private fun updateVisual() {
+        private fun updateVisual() {
         val currentValue = customPattern[0].toFloat()
-        val position = ((currentValue + 0.8) / 1.6 * 100).toInt()
-        val spaces = " ".repeat(position / 5)
-        customVisual.text = "$spaces●"
+        
+        // Update left/right zone indicators
+        val leftZone = findViewById<TextView>(R.id.leftZoneIndicator)
+        val rightZone = findViewById<TextView>(R.id.rightZoneIndicator)
+        
+        if (currentValue < 0) {
+            leftZone.text = "●"
+            rightZone.text = ""
+        } else if (currentValue > 0) {
+            leftZone.text = ""
+            rightZone.text = "●"
+        } else {
+            leftZone.text = ""
+            rightZone.text = ""
+        }
+        
+        // Update the position marker (center: 20 spaces)
+        val position = ((currentValue + 0.8) / 1.6 * 40).toInt()
+        val leftSpaces = " ".repeat(position.coerceAtMost(39))
+        val rightSpaces = " ".repeat((39 - position).coerceAtLeast(0))
+        customVisual.text = "$leftSpaces●$rightSpaces"
     }
+    
+    
     
     private fun saveCustomPattern() {
         val values = customPattern.joinToString(",")
