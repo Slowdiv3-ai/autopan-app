@@ -26,6 +26,7 @@ import android.widget.TextView
 import android.widget.Toast
 import java.io.BufferedReader
 import java.io.InputStreamReader
+import java.io.DataOutputStream
 
 class MainActivity : Activity() {
     
@@ -79,43 +80,16 @@ class MainActivity : Activity() {
     )
     
     private val panRunnable = object : Runnable {
-        private var currentBalance = 0.0f
-        private var targetBalance = 0.0f
-        private var smoothingSteps = 10
-        private var stepCount = 0
-        
         override fun run() {
             if (isPanning) {
-                if (smoothAll && stepCount < smoothingSteps && stepCount > 0) {
-                    currentBalance += (targetBalance - currentBalance) / (smoothingSteps - stepCount)
-                    stepCount++
-                    executeRootCommand("settings put system master_balance ${String.format("%.2f", currentBalance)}")
-                    handler.postDelayed(this, (currentSpeed / smoothingSteps).toLong())
-                } else {
-                    val pattern = when (currentPattern) {
-                        "custom" -> customPattern
-                        else -> patterns[currentPattern] ?: patterns["smooth"]!!
-                    }
-                    targetBalance = pattern[currentPosition % pattern.size].toFloat()
-                    
-                    if (smoothAll) {
-                        smoothingSteps = when {
-                            currentSpeed <= 500 -> 5
-                            currentSpeed <= 1000 -> 8
-                            currentSpeed <= 2000 -> 12
-                            else -> 16
-                        }
-                        stepCount = 1
-                        currentBalance += (targetBalance - currentBalance) * 0.3f
-                        executeRootCommand("settings put system master_balance ${String.format("%.2f", currentBalance)}")
-                    } else {
-                        currentBalance = targetBalance
-                        executeRootCommand("settings put system master_balance ${String.format("%.2f", currentBalance)}")
-                    }
-                    
-                    currentPosition++
-                    handler.postDelayed(this, (currentSpeed / (if (smoothAll) smoothingSteps else 1)).toLong())
+                val pattern = when (currentPattern) {
+                    "custom" -> customPattern
+                    else -> patterns[currentPattern] ?: patterns["smooth"]!!
                 }
+                val balance = pattern[currentPosition % pattern.size]
+                executeRootCommand("settings put system master_balance $balance")
+                currentPosition++
+                handler.postDelayed(this, currentSpeed.toLong())
             }
         }
     }
@@ -454,8 +428,13 @@ class MainActivity : Activity() {
     private fun executeRootCommand(command: String) {
         Thread {
             try {
-                val process = Runtime.getRuntime().exec(arrayOf("su", "-c", command))
+                val process = Runtime.getRuntime().exec("su")
+                val outputStream = DataOutputStream(process.outputStream)
+                outputStream.writeBytes("$command\n")
+                outputStream.writeBytes("exit\n")
+                outputStream.flush()
                 process.waitFor()
+                outputStream.close()
             } catch (e: Exception) {
                 e.printStackTrace()
             }
