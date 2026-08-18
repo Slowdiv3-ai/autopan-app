@@ -20,13 +20,12 @@ object PanService {
         
         Thread {
             try {
-                // Build the command directly instead of script file
-                val values = getPatternValues(pattern, customPattern)
+                val script = generatePanScript(speed, pattern, smoothAll, customPattern)
+                val scriptFile = File(context.cacheDir, "pan_script.sh")
+                scriptFile.writeText(script)
+                scriptFile.setExecutable(true)
                 
-                // Simple shell command with loop
-                val command = buildPanCommand(values, speed, smoothAll)
-                
-                panProcess = Runtime.getRuntime().exec(arrayOf("su", "-c", command))
+                panProcess = Runtime.getRuntime().exec(arrayOf("su", "-c", "sh " + scriptFile.absolutePath))
                 panProcess?.waitFor()
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -50,8 +49,8 @@ object PanService {
         }.start()
     }
     
-    private fun getPatternValues(pattern: String, customPattern: String?): List<String> {
-        return when (pattern) {
+    private fun generatePanScript(speed: Int, pattern: String, smoothAll: Boolean, customPattern: String?): String {
+        val values = when (pattern) {
             "smooth" -> listOf("-0.8", "-0.6", "-0.4", "-0.2", "0.0", "0.2", "0.4", "0.6", "0.8", "0.6", "0.4", "0.2", "0.0", "-0.2", "-0.4", "-0.6")
             "hard" -> listOf("-0.8", "0.0", "0.8", "0.0")
             "wave" -> listOf("-0.8", "-0.4", "0.0", "0.4", "0.8", "0.4", "0.0", "-0.4")
@@ -60,36 +59,35 @@ object PanService {
             "custom" -> customPattern?.split(",") ?: listOf("-0.5", "-0.25", "0.0", "0.25", "0.5", "0.25", "0.0", "-0.25")
             else -> listOf("-0.8", "-0.6", "-0.4", "-0.2", "0.0", "0.2", "0.4", "0.6", "0.8", "0.6", "0.4", "0.2", "0.0", "-0.2", "-0.4", "-0.6")
         }
-    }
-    
-    private fun buildPanCommand(values: List<String>, speed: Int, smoothAll: Boolean): String {
-        val sleepTime = speed / 1000.0
         
         val sb = StringBuilder()
-        sb.append("while true; do")
+        sb.append("#!/system/bin/sh\n")
+        sb.append("while true; do\n")
         
         if (smoothAll) {
-            // Smooth interpolation
+            // Smooth interpolation - directly write values
+            val steps = 4
+            val stepDelay = speed / (steps * values.size)
+            
             for (i in values.indices) {
                 val current = values[i].toFloat()
                 val next = values[(i + 1) % values.size].toFloat()
-                val steps = 5
                 
                 for (s in 1..steps) {
                     val interpolated = current + (next - current) * (s.toFloat() / steps.toFloat())
-                    sb.append(" settings put system master_balance ${String.format("%.2f", interpolated)};")
-                    sb.append(" sleep ${String.format("%.2f", sleepTime / steps)};")
+                    sb.append("  settings put system master_balance ${String.format("%.2f", interpolated)}\n")
+                    sb.append("  sleep ${String.format("%.3f", stepDelay / 1000.0)}\n")
                 }
             }
         } else {
             // Raw jumps
             for (value in values) {
-                sb.append(" settings put system master_balance $value;")
-                sb.append(" sleep ${String.format("%.2f", sleepTime)};")
+                sb.append("  settings put system master_balance $value\n")
+                sb.append("  sleep ${String.format("%.2f", speed / 1000.0)}\n")
             }
         }
         
-        sb.append(" done")
+        sb.append("done\n")
         return sb.toString()
     }
 }
