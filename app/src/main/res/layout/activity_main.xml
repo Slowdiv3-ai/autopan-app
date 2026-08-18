@@ -138,10 +138,87 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Custom Pattern (adjust sliders):"
+                android:text="Custom Pattern:"
                 android:textSize="16sp"
                 android:textColor="#00BCD4"
+                android:layout_marginBottom="15dp"/>
+            
+            <!-- Visual pan position indicator -->
+            <TextView
+                android:id="@+id/customVisual"
+                android:layout_width="match_parent"
+                android:layout_height="60dp"
+                android:gravity="center"
+                android:text="●"
+                android:textSize="30sp"
+                android:textColor="#00BCD4"
+                android:background="#1E1E1E"
+                android:layout_marginBottom="20dp"/>
+            
+            <!-- Preset buttons -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Quick Presets:"
+                android:textSize="14sp"
+                android:textColor="#BBBBBB"
                 android:layout_marginBottom="10dp"/>
+            
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center"
+                android:layout_marginBottom="20dp">
+                
+                <Button
+                    android:id="@+id/presetSmooth"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Smooth"
+                    android:textSize="12sp"
+                    android:backgroundTint="#4CAF50"
+                    android:layout_margin="2dp"/>
+                
+                <Button
+                    android:id="@+id/presetBounce"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Bounce"
+                    android:textSize="12sp"
+                    android:backgroundTint="#FF9800"
+                    android:layout_margin="2dp"/>
+                
+                <Button
+                    android:id="@+id/presetCircle"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Circle"
+                    android:textSize="12sp"
+                    android:backgroundTint="#2196F3"
+                    android:layout_margin="2dp"/>
+                
+            </LinearLayout>
+            
+            <!-- Step labels and sliders -->
+            <TextView
+                android:id="@+id/stepLabels"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Step:  1      2      3      4      5      6      7      8"
+                android:textSize="11sp"
+                android:textColor="#888888"
+                android:layout_marginBottom="5dp"/>
+            
+            <!-- Each slider with position indicator -->
+            <LinearLayout
+                android:id="@+id/slidersContainer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"/>
             
         </LinearLayout>
         
