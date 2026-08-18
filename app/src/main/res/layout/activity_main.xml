@@ -36,6 +36,25 @@
             android:textSize="24sp"
             android:backgroundTint="#4CAF50"
             android:layout_marginBottom="30dp"/>
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Bluetooth Auto-Pan:"
+            android:textSize="16sp"
+            android:textColor="#FFFFFF"
+            android:layout_marginBottom="5dp"/>
+        
+        <Switch
+            android:id="@+id/bluetoothSwitch"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="20dp"/>
+        
+        <Switch
+            android:id="@+id/bluetoothSwitch"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="20dp"/>
         
         <TextView
             android:layout_width="wrap_content"
