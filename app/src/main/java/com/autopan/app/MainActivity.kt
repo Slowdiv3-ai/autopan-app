@@ -24,7 +24,10 @@ class MainActivity : Activity() {
     private lateinit var speedSeekBar: SeekBar
     private lateinit var speedText: TextView
     private lateinit var customContainer: LinearLayout
+    private lateinit var customVisual: TextView
+    private lateinit var slidersContainer: LinearLayout
     private val customSeekBars = mutableListOf<SeekBar>()
+    private val sliderLabels = mutableListOf<TextView>()
     
     private var isPanning = false
     private val handler = Handler(Looper.getMainLooper())
@@ -54,6 +57,12 @@ class MainActivity : Activity() {
         )
     )
     
+    private val presets = mapOf(
+        "smooth" to arrayOf("-0.5", "-0.25", "0.0", "0.25", "0.5", "0.25", "0.0", "-0.25"),
+        "bounce" to arrayOf("-0.8", "0.0", "-0.4", "0.0", "0.4", "0.0", "0.8", "0.0"),
+        "circle" to arrayOf("-0.8", "-0.4", "0.0", "0.4", "0.8", "0.4", "0.0", "-0.4")
+    )
+    
     private val panRunnable = object : Runnable {
         override fun run() {
             if (isPanning) {
@@ -79,6 +88,8 @@ class MainActivity : Activity() {
         speedSeekBar = findViewById(R.id.speedSeekBar)
         speedText = findViewById(R.id.speedText)
         customContainer = findViewById(R.id.customContainer)
+        customVisual = findViewById(R.id.customVisual)
+        slidersContainer = findViewById(R.id.slidersContainer)
         
         val prefs = getSharedPreferences("pan_settings", Context.MODE_PRIVATE)
         currentPattern = prefs.getString("pattern", "smooth") ?: "smooth"
@@ -100,7 +111,6 @@ class MainActivity : Activity() {
         
         createCustomSliders()
         
-        // Show custom sliders if custom pattern selected
         customContainer.visibility = if (currentPattern == "custom") LinearLayout.VISIBLE else LinearLayout.GONE
         
         speedSeekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
@@ -124,9 +134,18 @@ class MainActivity : Activity() {
             }
             prefs.edit().putString("pattern", currentPattern).apply()
             currentPosition = 0
-            
-            // Show/hide custom sliders
             customContainer.visibility = if (currentPattern == "custom") LinearLayout.VISIBLE else LinearLayout.GONE
+        }
+        
+        // Preset buttons
+        findViewById<Button>(R.id.presetSmooth).setOnClickListener {
+            applyPreset("smooth")
+        }
+        findViewById<Button>(R.id.presetBounce).setOnClickListener {
+            applyPreset("bounce")
+        }
+        findViewById<Button>(R.id.presetCircle).setOnClickListener {
+            applyPreset("circle")
         }
         
         toggleButton.setOnClickListener {
@@ -138,23 +157,39 @@ class MainActivity : Activity() {
         }
         
         updateUI()
+        updateVisual()
     }
     
     private fun createCustomSliders() {
-        customContainer.removeAllViews()
+        slidersContainer.removeAllViews()
         customSeekBars.clear()
+        sliderLabels.clear()
         
         for (i in 0 until 8) {
+            val row = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                setPadding(0, 8, 0, 8)
+            }
+            
             val label = TextView(this).apply {
-                text = "Step ${i + 1}: ${customPattern[i]}"
-                textSize = 12f
+                text = "${i + 1}"
+                textSize = 14f
                 setTextColor(Color.WHITE)
+                width = 30
             }
             
             val seekBar = SeekBar(this).apply {
-                max = 160  // -0.8 to 0.8
+                max = 160  // -0.8 to 0.8 range
                 progress = ((customPattern[i].toFloat() + 0.8) * 100).toInt()
                 tag = i
+                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+            }
+            
+            val valueLabel = TextView(this).apply {
+                text = customPattern[i]
+                textSize = 12f
+                setTextColor(Color.CYAN)
+                width = 45
             }
             
             seekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
@@ -162,17 +197,46 @@ class MainActivity : Activity() {
                     val index = seekBar?.tag as Int
                     val value = ((progress - 80) / 100f)
                     customPattern[index] = String.format("%.2f", value)
-                    label.text = "Step ${index + 1}: ${customPattern[index]}"
+                    valueLabel.text = customPattern[index]
+                    updateVisual()
                     saveCustomPattern()
                 }
                 override fun onStartTrackingTouch(seekBar: SeekBar?) {}
                 override fun onStopTrackingTouch(seekBar: SeekBar?) {}
             })
             
-            customContainer.addView(label)
-            customContainer.addView(seekBar)
+            row.addView(label)
+            row.addView(seekBar)
+            row.addView(valueLabel)
+            
+            slidersContainer.addView(row)
             customSeekBars.add(seekBar)
+            sliderLabels.add(valueLabel)
         }
+    }
+    
+    private fun applyPreset(presetName: String) {
+        val preset = presets[presetName] ?: return
+        customPattern = preset
+        saveCustomPattern()
+        
+        // Update sliders
+        for (i in 0 until customSeekBars.size) {
+            val value = customPattern[i].toFloat()
+            customSeekBars[i].progress = ((value + 0.8) * 100).toInt()
+            sliderLabels[i].text = customPattern[i]
+        }
+        
+        updateVisual()
+        Toast.makeText(this, "Preset applied: ${presetName.capitalize()}", Toast.LENGTH_SHORT).show()
+    }
+    
+    private fun updateVisual() {
+        // Update the visual indicator
+        val currentValue = customPattern[0].toFloat()
+        val position = ((currentValue + 0.8) / 1.6 * 100).toInt()
+        val spaces = " ".repeat(position / 5)
+        customVisual.text = "$spaces●"
     }
     
     private fun saveCustomPattern() {
