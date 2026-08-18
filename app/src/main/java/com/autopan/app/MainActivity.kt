@@ -1,16 +1,23 @@
 package com.autopan.app
 
 import android.app.Activity
+import android.bluetooth.BluetoothAdapter
+import android.bluetooth.BluetoothDevice
+import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.graphics.Color
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.widget.Button
+import android.widget.CompoundButton
 import android.widget.LinearLayout
 import android.widget.RadioButton
 import android.widget.RadioGroup
 import android.widget.SeekBar
+import android.widget.Switch
 import android.widget.TextView
 import android.widget.Toast
 import java.io.BufferedReader
@@ -26,6 +33,7 @@ class MainActivity : Activity() {
     private lateinit var customContainer: LinearLayout
     private lateinit var customVisual: TextView
     private lateinit var slidersContainer: LinearLayout
+    private lateinit var bluetoothSwitch: Switch
     private val customSeekBars = mutableListOf<SeekBar>()
     private val sliderLabels = mutableListOf<TextView>()
     
@@ -35,6 +43,7 @@ class MainActivity : Activity() {
     private var currentSpeed = 1000
     private var currentPattern = "smooth"
     private var customPattern = arrayOf("-0.5", "-0.25", "0.0", "0.25", "0.5", "0.25", "0.0", "-0.25")
+    private var bluetoothAutoPan = false
     
     private val patterns = mapOf(
         "smooth" to arrayOf(
@@ -78,6 +87,25 @@ class MainActivity : Activity() {
         }
     }
     
+    private val bluetoothReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            when (intent?.action) {
+                BluetoothDevice.ACTION_ACL_CONNECTED -> {
+                    if (bluetoothAutoPan && !isPanning) {
+                        startPanning()
+                        Toast.makeText(this@MainActivity, "Bluetooth connected - Panning started", Toast.LENGTH_SHORT).show()
+                    }
+                }
+                BluetoothDevice.ACTION_ACL_DISCONNECTED -> {
+                    if (bluetoothAutoPan && isPanning) {
+                        stopPanning()
+                        Toast.makeText(this@MainActivity, "Bluetooth disconnected - Panning stopped", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+        }
+    }
+    
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -90,10 +118,12 @@ class MainActivity : Activity() {
         customContainer = findViewById(R.id.customContainer)
         customVisual = findViewById(R.id.customVisual)
         slidersContainer = findViewById(R.id.slidersContainer)
+        bluetoothSwitch = findViewById(R.id.bluetoothSwitch)
         
         val prefs = getSharedPreferences("pan_settings", Context.MODE_PRIVATE)
         currentPattern = prefs.getString("pattern", "smooth") ?: "smooth"
         currentSpeed = prefs.getInt("speed", 1000)
+        bluetoothAutoPan = prefs.getBoolean("bluetooth_auto_pan", false)
         val savedCustom = prefs.getString("custom_pattern", "-0.5,-0.25,0.0,0.25,0.5,0.25,0.0,-0.25")
         customPattern = savedCustom?.split(",")?.toTypedArray() ?: customPattern
         
@@ -108,9 +138,9 @@ class MainActivity : Activity() {
         
         speedSeekBar.progress = currentSpeed / 100
         speedText.text = "Speed: ${currentSpeed}ms"
+        bluetoothSwitch.isChecked = bluetoothAutoPan
         
         createCustomSliders()
-        
         customContainer.visibility = if (currentPattern == "custom") LinearLayout.VISIBLE else LinearLayout.GONE
         
         speedSeekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
@@ -137,16 +167,19 @@ class MainActivity : Activity() {
             customContainer.visibility = if (currentPattern == "custom") LinearLayout.VISIBLE else LinearLayout.GONE
         }
         
-        // Preset buttons
-        findViewById<Button>(R.id.presetSmooth).setOnClickListener {
-            applyPreset("smooth")
+        bluetoothSwitch.setOnCheckedChangeListener { _, isChecked ->
+            bluetoothAutoPan = isChecked
+            prefs.edit().putBoolean("bluetooth_auto_pan", isChecked).apply()
+            if (isChecked) {
+                Toast.makeText(this, "Bluetooth auto-pan enabled", Toast.LENGTH_SHORT).show()
+            } else {
+                Toast.makeText(this, "Bluetooth auto-pan disabled", Toast.LENGTH_SHORT).show()
+            }
         }
-        findViewById<Button>(R.id.presetBounce).setOnClickListener {
-            applyPreset("bounce")
-        }
-        findViewById<Button>(R.id.presetCircle).setOnClickListener {
-            applyPreset("circle")
-        }
+        
+        findViewById<Button>(R.id.presetSmooth).setOnClickListener { applyPreset("smooth") }
+        findViewById<Button>(R.id.presetBounce).setOnClickListener { applyPreset("bounce") }
+        findViewById<Button>(R.id.presetCircle).setOnClickListener { applyPreset("circle") }
         
         toggleButton.setOnClickListener {
             if (isPanning) {
@@ -155,6 +188,13 @@ class MainActivity : Activity() {
                 startPanning()
             }
         }
+        
+        // Register Bluetooth receiver
+        val filter = IntentFilter().apply {
+            addAction(BluetoothDevice.ACTION_ACL_CONNECTED)
+            addAction(BluetoothDevice.ACTION_ACL_DISCONNECTED)
+        }
+        registerReceiver(bluetoothReceiver, filter)
         
         updateUI()
         updateVisual()
@@ -179,7 +219,7 @@ class MainActivity : Activity() {
             }
             
             val seekBar = SeekBar(this).apply {
-                max = 160  // -0.8 to 0.8 range
+                max = 160
                 progress = ((customPattern[i].toFloat() + 0.8) * 100).toInt()
                 tag = i
                 layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
@@ -220,7 +260,6 @@ class MainActivity : Activity() {
         customPattern = preset
         saveCustomPattern()
         
-        // Update sliders
         for (i in 0 until customSeekBars.size) {
             val value = customPattern[i].toFloat()
             customSeekBars[i].progress = ((value + 0.8) * 100).toInt()
@@ -232,7 +271,6 @@ class MainActivity : Activity() {
     }
     
     private fun updateVisual() {
-        // Update the visual indicator
         val currentValue = customPattern[0].toFloat()
         val position = ((currentValue + 0.8) / 1.6 * 100).toInt()
         val spaces = " ".repeat(position / 5)
@@ -254,7 +292,6 @@ class MainActivity : Activity() {
         statusText.text = "Status: ACTIVE - ${currentPattern.uppercase()}"
         statusText.setTextColor(Color.GREEN)
         handler.post(panRunnable)
-        Toast.makeText(this, "Panning started", Toast.LENGTH_SHORT).show()
     }
     
     private fun stopPanning() {
@@ -264,7 +301,6 @@ class MainActivity : Activity() {
         toggleButton.text = "START PAN"
         statusText.text = "Status: OFF"
         statusText.setTextColor(Color.RED)
-        Toast.makeText(this, "Panning stopped", Toast.LENGTH_SHORT).show()
     }
     
     private fun updateUI() {
@@ -288,6 +324,11 @@ class MainActivity : Activity() {
         super.onDestroy()
         if (isPanning) {
             stopPanning()
+        }
+        try {
+            unregisterReceiver(bluetoothReceiver)
+        } catch (e: Exception) {
+            // Already unregistered
         }
     }
 }
