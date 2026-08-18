@@ -33,8 +33,10 @@ class MainActivity : Activity() {
     private lateinit var bluetoothSwitch: Switch
     private val customSeekBars = mutableListOf<SeekBar>()
     private val sliderLabels = mutableListOf<TextView>()
-    private val handler = Handler(Looper.getMainLooper())
     
+    private var isPanning = false
+    private val handler = Handler(Looper.getMainLooper())
+    private var currentPosition = 0
     private var currentSpeed = 1000
     private var currentPattern = "smooth"
     private var customPattern = arrayOf("-0.5", "-0.25", "0.0", "0.25", "0.5", "0.25", "0.0", "-0.25")
@@ -67,18 +69,33 @@ class MainActivity : Activity() {
         "circle" to arrayOf("-0.8", "-0.4", "0.0", "0.4", "0.8", "0.4", "0.0", "-0.4")
     )
     
+    private val panRunnable = object : Runnable {
+        override fun run() {
+            if (isPanning) {
+                val pattern = when (currentPattern) {
+                    "custom" -> customPattern
+                    else -> patterns[currentPattern] ?: patterns["smooth"]!!
+                }
+                val balance = pattern[currentPosition % pattern.size]
+                executeRootCommand("settings put system master_balance $balance")
+                currentPosition++
+                handler.postDelayed(this, currentSpeed.toLong())
+            }
+        }
+    }
+    
     private val bluetoothReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             when (intent?.action) {
                 BluetoothDevice.ACTION_ACL_CONNECTED -> {
-                    if (bluetoothAutoPan && !PanService.isRunning) {
-                        startPanService()
+                    if (bluetoothAutoPan && !isPanning) {
+                        startPanning()
                         Toast.makeText(this@MainActivity, "Bluetooth connected - Panning started", Toast.LENGTH_SHORT).show()
                     }
                 }
                 BluetoothDevice.ACTION_ACL_DISCONNECTED -> {
-                    if (bluetoothAutoPan && PanService.isRunning) {
-                        stopPanService()
+                    if (bluetoothAutoPan && isPanning) {
+                        stopPanning()
                         Toast.makeText(this@MainActivity, "Bluetooth disconnected - Panning stopped", Toast.LENGTH_SHORT).show()
                     }
                 }
@@ -143,17 +160,13 @@ class MainActivity : Activity() {
                 else -> "smooth"
             }
             prefs.edit().putString("pattern", currentPattern).apply()
+            currentPosition = 0
             customContainer.visibility = if (currentPattern == "custom") LinearLayout.VISIBLE else LinearLayout.GONE
         }
         
         bluetoothSwitch.setOnCheckedChangeListener { _, isChecked ->
             bluetoothAutoPan = isChecked
             prefs.edit().putBoolean("bluetooth_auto_pan", isChecked).apply()
-            if (isChecked) {
-                Toast.makeText(this, "Bluetooth auto-pan enabled", Toast.LENGTH_SHORT).show()
-            } else {
-                Toast.makeText(this, "Bluetooth auto-pan disabled", Toast.LENGTH_SHORT).show()
-            }
         }
         
         findViewById<Button>(R.id.presetSmooth).setOnClickListener { applyPreset("smooth") }
@@ -161,10 +174,10 @@ class MainActivity : Activity() {
         findViewById<Button>(R.id.presetCircle).setOnClickListener { applyPreset("circle") }
         
         toggleButton.setOnClickListener {
-            if (PanService.isRunning) {
-                stopPanService()
+            if (isPanning) {
+                stopPanning()
             } else {
-                startPanService()
+                startPanning()
             }
         }
         
@@ -272,7 +285,6 @@ class MainActivity : Activity() {
         }
         
         updateVisual()
-        Toast.makeText(this, "Preset applied: ${presetName.capitalize()}", Toast.LENGTH_SHORT).show()
     }
     
     private fun updateVisual() {
@@ -313,43 +325,49 @@ class MainActivity : Activity() {
             .apply()
     }
     
-    private fun startPanService() {
-        val intent = Intent(this, PanService::class.java)
-        intent.action = "START"
-        startForegroundService(intent)
-        updateUI()
+    private fun startPanning() {
+        isPanning = true
+        currentPosition = 0
+        toggleButton.text = "STOP PAN"
+        statusText.text = "Status: ACTIVE - ${currentPattern.uppercase()}"
+        statusText.setTextColor(Color.GREEN)
+        handler.post(panRunnable)
     }
     
-    private fun stopPanService() {
-        val intent = Intent(this, PanService::class.java)
-        intent.action = "STOP"
-        startService(intent)
-        updateUI()
+    private fun stopPanning() {
+        isPanning = false
+        handler.removeCallbacks(panRunnable)
+        executeRootCommand("settings put system master_balance 0.0")
+        toggleButton.text = "START PAN"
+        statusText.text = "Status: OFF"
+        statusText.setTextColor(Color.RED)
     }
     
     private fun updateUI() {
-        if (PanService.isRunning) {
-            toggleButton.text = "STOP PAN"
-            statusText.text = "Status: ACTIVE"
-            statusText.setTextColor(Color.GREEN)
-        } else {
-            toggleButton.text = "START PAN"
-            statusText.text = "Status: OFF"
-            statusText.setTextColor(Color.RED)
-        }
+        toggleButton.text = if (isPanning) "STOP PAN" else "START PAN"
+        statusText.text = if (isPanning) "Status: ACTIVE" else "Status: OFF"
+        statusText.setTextColor(if (isPanning) Color.GREEN else Color.RED)
     }
     
-    override fun onResume() {
-        super.onResume()
-        updateUI()
+    private fun executeRootCommand(command: String) {
+        Thread {
+            try {
+                val process = Runtime.getRuntime().exec(arrayOf("su", "-c", command))
+                process.waitFor()
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }.start()
     }
     
     override fun onDestroy() {
         super.onDestroy()
+        if (isPanning) {
+            stopPanning()
+        }
         try {
             unregisterReceiver(bluetoothReceiver)
         } catch (e: Exception) {
-            // Already unregistered
         }
     }
 }
