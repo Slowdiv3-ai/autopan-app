@@ -33,6 +33,7 @@ class MainActivity : Activity() {
     private lateinit var bluetoothSwitch: Switch
     private val customSeekBars = mutableListOf<SeekBar>()
     private val sliderLabels = mutableListOf<TextView>()
+    private val handler = Handler(Looper.getMainLooper())
     
     private var currentSpeed = 1000
     private var currentPattern = "smooth"
