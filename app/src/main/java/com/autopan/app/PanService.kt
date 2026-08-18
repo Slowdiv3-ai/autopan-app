@@ -1,168 +1,63 @@
 package com.autopan.app
 
-import android.app.Notification
-import android.app.NotificationChannel
-import android.app.NotificationManager
-import android.app.PendingIntent
-import android.app.Service
 import android.content.Context
 import android.content.Intent
-import android.os.Build
 import android.os.Handler
-import android.os.IBinder
 import android.os.Looper
+import java.io.DataOutputStream
+import java.io.File
 
-class PanService : Service() {
+object PanService {
+    var isRunning = false
+    private var panProcess: Process? = null
+    private var stopRequested = false
     
-    companion object {
-        var isRunning = false
-    }
-    
-    private val handler = Handler(Looper.getMainLooper())
-    private var currentPosition = 0
-    private var currentSpeed = 1000
-    private var currentPattern = "smooth"
-    private var customPattern = arrayOf("-0.5", "-0.25", "0.0", "0.25", "0.5", "0.25", "0.0", "-0.25")
-    private var smoothAll = true
-    
-    private val patterns = mapOf(
-        "smooth" to arrayOf(
-            "-0.8", "-0.6", "-0.4", "-0.2", "0.0",
-            "0.2", "0.4", "0.6", "0.8", "0.6",
-            "0.4", "0.2", "0.0", "-0.2", "-0.4", "-0.6"
-        ),
-        "hard" to arrayOf("-0.8", "0.0", "0.8", "0.0"),
-        "wave" to arrayOf(
-            "-0.8", "-0.4", "0.0", "0.4", "0.8",
-            "0.4", "0.0", "-0.4"
-        ),
-        "subtle" to arrayOf(
-            "-0.3", "-0.15", "0.0", "0.15", "0.3",
-            "0.15", "0.0", "-0.15"
-        ),
-        "crazy" to arrayOf(
-            "-0.8", "0.8", "-0.4", "0.4", "-0.8",
-            "0.8", "-0.2", "0.2", "0.0"
-        )
-    )
-    
-    private val panRunnable = object : Runnable {
-        private var currentBalance = 0.0f
-        private var targetBalance = 0.0f
-        private var smoothingSteps = 10
-        private var stepCount = 0
-        
-        override fun run() {
-            if (isRunning) {
-                if (smoothAll && stepCount < smoothingSteps && stepCount > 0) {
-                    currentBalance += (targetBalance - currentBalance) / (smoothingSteps - stepCount)
-                    stepCount++
-                    executeRootCommand("settings put system master_balance ${String.format("%.2f", currentBalance)}")
-                    handler.postDelayed(this, (currentSpeed / smoothingSteps).toLong())
-                } else {
-                    val pattern = when (currentPattern) {
-                        "custom" -> customPattern
-                        else -> patterns[currentPattern] ?: patterns["smooth"]!!
-                    }
-                    targetBalance = pattern[currentPosition % pattern.size].toFloat()
-                    
-                    if (smoothAll) {
-                        smoothingSteps = when {
-                            currentSpeed <= 500 -> 5
-                            currentSpeed <= 1000 -> 8
-                            currentSpeed <= 2000 -> 12
-                            else -> 16
-                        }
-                        stepCount = 1
-                        currentBalance += (targetBalance - currentBalance) * 0.3f
-                        executeRootCommand("settings put system master_balance ${String.format("%.2f", currentBalance)}")
-                    } else {
-                        currentBalance = targetBalance
-                        executeRootCommand("settings put system master_balance ${String.format("%.2f", currentBalance)}")
-                    }
-                    
-                    currentPosition++
-                    handler.postDelayed(this, (currentSpeed / (if (smoothAll) smoothingSteps else 1)).toLong())
-                }
-            }
-        }
-    }
-    
-    override fun onCreate() {
-        super.onCreate()
-        createNotificationChannel()
-    }
-    
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        when (intent?.action) {
-            "START" -> startPanning()
-            "STOP" -> stopPanning()
-        }
-        return START_STICKY
-    }
-    
-    private fun startPanning() {
+    fun start(context: Context) {
         if (isRunning) return
         
+        val prefs = context.getSharedPreferences("pan_settings", Context.MODE_PRIVATE)
+        val speed = prefs.getInt("speed", 1000)
+        val pattern = prefs.getString("pattern", "smooth") ?: "smooth"
+        val smoothAll = prefs.getBoolean("smooth_all", true)
+        val customPattern = prefs.getString("custom_pattern", "-0.5,-0.25,0.0,0.25,0.5,0.25,0.0,-0.25")
+        
         isRunning = true
-        currentPosition = 0
+        stopRequested = false
         
-        val prefs = getSharedPreferences("pan_settings", Context.MODE_PRIVATE)
-        currentSpeed = prefs.getInt("speed", 1000)
-        currentPattern = prefs.getString("pattern", "smooth") ?: "smooth"
-        smoothAll = prefs.getBoolean("smooth_all", true)
-        val savedCustom = prefs.getString("custom_pattern", "-0.5,-0.25,0.0,0.25,0.5,0.25,0.0,-0.25")
-        customPattern = savedCustom?.split(",")?.toTypedArray() ?: customPattern
-        
-        startForeground(1, createNotification())
-        handler.post(panRunnable)
-    }
-    
-    private fun stopPanning() {
-        isRunning = false
-        handler.removeCallbacks(panRunnable)
-        executeRootCommand("settings put system master_balance 0.0")
-        stopForeground(true)
-        stopSelf()
-    }
-    
-    private fun createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                "pan_service",
-                "Auto Pan Service",
-                NotificationManager.IMPORTANCE_LOW
-            ).apply {
-                description = "Keeps auto-pan running"
-                setShowBadge(false)
-            }
-            val notificationManager = getSystemService(NotificationManager::class.java)
-            notificationManager.createNotificationChannel(channel)
-        }
-    }
-    
-    private fun createNotification(): Notification {
-        val intent = Intent(this, MainActivity::class.java)
-        val pendingIntent = PendingIntent.getActivity(
-            this,
-            0,
-            intent,
-            PendingIntent.FLAG_IMMUTABLE
-        )
-        
-        return Notification.Builder(this, "pan_service")
-            .setContentTitle("Auto Pan Active")
-            .setContentText("Panning: $currentPattern")
-            .setSmallIcon(android.R.drawable.ic_media_play)
-            .setContentIntent(pendingIntent)
-            .setOngoing(true)
-            .build()
-    }
-    
-    private fun executeRootCommand(command: String) {
         Thread {
             try {
-                val process = Runtime.getRuntime().exec(arrayOf("su", "-c", command))
+                val script = generatePanScript(speed, pattern, smoothAll, customPattern)
+                
+                // Write script to file
+                val scriptFile = File(context.cacheDir, "pan_script.sh")
+                scriptFile.writeText(script)
+                scriptFile.setExecutable(true)
+                
+                // Run as root
+                panProcess = Runtime.getRuntime().exec(arrayOf("su", "-c", scriptFile.absolutePath))
+                
+                // Wait for process to finish
+                panProcess?.waitFor()
+                
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+            
+            isRunning = false
+        }.start()
+    }
+    
+    fun stop() {
+        stopRequested = true
+        isRunning = false
+        
+        // Kill the process
+        panProcess?.destroy()
+        
+        // Reset balance
+        Thread {
+            try {
+                val process = Runtime.getRuntime().exec(arrayOf("su", "-c", "settings put system master_balance 0.0"))
                 process.waitFor()
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -170,12 +65,52 @@ class PanService : Service() {
         }.start()
     }
     
-    override fun onDestroy() {
-        super.onDestroy()
-        isRunning = false
-        handler.removeCallbacks(panRunnable)
-        executeRootCommand("settings put system master_balance 0.0")
+    private fun generatePanScript(speed: Int, pattern: String, smoothAll: Boolean, customPattern: String?): String {
+        val patterns = mapOf(
+            "smooth" to listOf("-0.8", "-0.6", "-0.4", "-0.2", "0.0", "0.2", "0.4", "0.6", "0.8", "0.6", "0.4", "0.2", "0.0", "-0.2", "-0.4", "-0.6"),
+            "hard" to listOf("-0.8", "0.0", "0.8", "0.0"),
+            "wave" to listOf("-0.8", "-0.4", "0.0", "0.4", "0.8", "0.4", "0.0", "-0.4"),
+            "subtle" to listOf("-0.3", "-0.15", "0.0", "0.15", "0.3", "0.15", "0.0", "-0.15"),
+            "crazy" to listOf("-0.8", "0.8", "-0.4", "0.4", "-0.8", "0.8", "-0.2", "0.2", "0.0")
+        )
+        
+        val panPattern = when (pattern) {
+            "custom" -> customPattern?.split(",") ?: listOf("-0.5", "-0.25", "0.0", "0.25", "0.5", "0.25", "0.0", "-0.25")
+            else -> patterns[pattern] ?: patterns["smooth"]!!
+        }
+        
+        val sb = StringBuilder()
+        sb.append("#!/system/bin/sh\n")
+        sb.append("while true; do\n")
+        
+        if (smoothAll) {
+            // Smooth version - interpolate between steps
+            val steps = when {
+                speed <= 500 -> 5
+                speed <= 1000 -> 8
+                speed <= 2000 -> 12
+                else -> 16
+            }
+            val stepDelay = speed / steps
+            
+            sb.append("  for i in 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31; do\n")
+            sb.append("    idx=\$((i % ${panPattern.size}))\n")
+            sb.append("    next_idx=\$(((i + 1) % ${panPattern.size}))\n")
+            sb.append("    current=${panPattern.joinToString(" ")}\n")
+            sb.append("    for s in 1 2 3; do\n")
+            sb.append("      settings put system master_balance \$(echo \"scale=2; (\$current + \$current) / 2\" | bc)\n")
+            sb.append("      sleep 0.05\n")
+            sb.append("    done\n")
+            sb.append("  done\n")
+        } else {
+            // Raw version - direct jump
+            for (value in panPattern) {
+                sb.append("  settings put system master_balance $value\n")
+                sb.append("  sleep $((speed / 1000)).$((speed % 1000 / 100))\n")
+            }
+        }
+        
+        sb.append("done\n")
+        return sb.toString()
     }
-    
-    override fun onBind(intent: Intent?): IBinder? = null
 }
