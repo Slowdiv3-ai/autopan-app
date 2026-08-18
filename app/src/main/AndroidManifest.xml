@@ -23,7 +23,8 @@
         <service
             android:name=".PanService"
             android:enabled="true"
-            android:exported="false" />
+            android:exported="false"
+            android:foregroundServiceType="mediaPlayback" />
         
     </application>
 
