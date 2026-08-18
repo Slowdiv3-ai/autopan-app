@@ -15,7 +15,6 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
-import android.provider.Settings
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.RadioButton
@@ -39,7 +38,6 @@ class MainActivity : Activity() {
     private lateinit var slidersContainer: LinearLayout
     private lateinit var bluetoothSwitch: Switch
     private lateinit var smoothSwitch: Switch
-    private lateinit var accessibilityButton: Button
     private val customSeekBars = mutableListOf<SeekBar>()
     private val sliderLabels = mutableListOf<TextView>()
     
@@ -126,7 +124,6 @@ class MainActivity : Activity() {
         slidersContainer = findViewById(R.id.slidersContainer)
         bluetoothSwitch = findViewById(R.id.bluetoothSwitch)
         smoothSwitch = findViewById(R.id.smoothSwitch)
-        accessibilityButton = findViewById(R.id.accessibilityButton)
         
         val prefs = getSharedPreferences("pan_settings", Context.MODE_PRIVATE)
         currentPattern = prefs.getString("pattern", "smooth") ?: "smooth"
@@ -205,11 +202,6 @@ class MainActivity : Activity() {
             }
         }
         
-        accessibilityButton.setOnClickListener {
-            val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
-            startActivity(intent)
-            Toast.makeText(this, "Enable Auto Pan Toggle in Accessibility settings", Toast.LENGTH_LONG).show()
-        }
         
         val filter = IntentFilter().apply {
             addAction(BluetoothDevice.ACTION_ACL_CONNECTED)
@@ -217,10 +209,6 @@ class MainActivity : Activity() {
         }
         registerReceiver(bluetoothReceiver, filter)
         
-        // Check if auto-start requested from accessibility service
-        if (intent?.getBooleanExtra("auto_start", false) == true) {
-            startPanning()
-        }
         
         updateUI()
         handler.postDelayed({ updateVisual() }, 100)
