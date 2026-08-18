@@ -31,6 +31,7 @@ class MainActivity : Activity() {
     private lateinit var customContainer: LinearLayout
     private lateinit var slidersContainer: LinearLayout
     private lateinit var bluetoothSwitch: Switch
+    private lateinit var smoothSwitch: Switch
     private val customSeekBars = mutableListOf<SeekBar>()
     private val sliderLabels = mutableListOf<TextView>()
     
@@ -41,6 +42,7 @@ class MainActivity : Activity() {
     private var currentPattern = "smooth"
     private var customPattern = arrayOf("-0.5", "-0.25", "0.0", "0.25", "0.5", "0.25", "0.0", "-0.25")
     private var bluetoothAutoPan = false
+    private var smoothAll = true
     
     private val patterns = mapOf(
         "smooth" to arrayOf(
@@ -70,16 +72,47 @@ class MainActivity : Activity() {
     )
     
     private val panRunnable = object : Runnable {
+        private var currentBalance = 0.0f
+        private var targetBalance = 0.0f
+        private var smoothingSteps = 10
+        private var stepCount = 0
+        
         override fun run() {
             if (isPanning) {
-                val pattern = when (currentPattern) {
-                    "custom" -> customPattern
-                    else -> patterns[currentPattern] ?: patterns["smooth"]!!
+                if (smoothAll && stepCount < smoothingSteps && stepCount > 0) {
+                    // Smooth interpolation
+                    currentBalance += (targetBalance - currentBalance) / (smoothingSteps - stepCount)
+                    stepCount++
+                    executeRootCommand("settings put system master_balance ${String.format("%.2f", currentBalance)}")
+                    handler.postDelayed(this, currentSpeed / smoothingSteps)
+                } else {
+                    // Get next target
+                    val pattern = when (currentPattern) {
+                        "custom" -> customPattern
+                        else -> patterns[currentPattern] ?: patterns["smooth"]!!
+                    }
+                    targetBalance = pattern[currentPosition % pattern.size].toFloat()
+                    
+                    if (smoothAll) {
+                        // Calculate smoothing steps
+                        smoothingSteps = when {
+                            currentSpeed <= 500 -> 5
+                            currentSpeed <= 1000 -> 8
+                            currentSpeed <= 2000 -> 12
+                            else -> 16
+                        }
+                        stepCount = 1
+                        currentBalance += (targetBalance - currentBalance) * 0.3f
+                        executeRootCommand("settings put system master_balance ${String.format("%.2f", currentBalance)}")
+                    } else {
+                        // No smoothing - direct
+                        currentBalance = targetBalance
+                        executeRootCommand("settings put system master_balance ${String.format("%.2f", currentBalance)}")
+                    }
+                    
+                    currentPosition++
+                    handler.postDelayed(this, currentSpeed / (if (smoothAll) smoothingSteps else 1))
                 }
-                val balance = pattern[currentPosition % pattern.size]
-                executeRootCommand("settings put system master_balance $balance")
-                currentPosition++
-                handler.postDelayed(this, currentSpeed.toLong())
             }
         }
     }
@@ -115,11 +148,13 @@ class MainActivity : Activity() {
         customContainer = findViewById(R.id.customContainer)
         slidersContainer = findViewById(R.id.slidersContainer)
         bluetoothSwitch = findViewById(R.id.bluetoothSwitch)
+        smoothSwitch = findViewById(R.id.smoothSwitch)
         
         val prefs = getSharedPreferences("pan_settings", Context.MODE_PRIVATE)
         currentPattern = prefs.getString("pattern", "smooth") ?: "smooth"
         currentSpeed = prefs.getInt("speed", 1000)
         bluetoothAutoPan = prefs.getBoolean("bluetooth_auto_pan", false)
+        smoothAll = prefs.getBoolean("smooth_all", true)
         val savedCustom = prefs.getString("custom_pattern", "-0.5,-0.25,0.0,0.25,0.5,0.25,0.0,-0.25")
         customPattern = savedCustom?.split(",")?.toTypedArray() ?: customPattern
         
@@ -135,6 +170,7 @@ class MainActivity : Activity() {
         speedSeekBar.progress = currentSpeed / 100
         speedText.text = "Speed: ${currentSpeed}ms"
         bluetoothSwitch.isChecked = bluetoothAutoPan
+        smoothSwitch.isChecked = smoothAll
         
         createCustomSliders()
         createGraphDots()
@@ -167,6 +203,16 @@ class MainActivity : Activity() {
         bluetoothSwitch.setOnCheckedChangeListener { _, isChecked ->
             bluetoothAutoPan = isChecked
             prefs.edit().putBoolean("bluetooth_auto_pan", isChecked).apply()
+        }
+        
+        smoothSwitch.setOnCheckedChangeListener { _, isChecked ->
+            smoothAll = isChecked
+            prefs.edit().putBoolean("smooth_all", isChecked).apply()
+            if (isChecked) {
+                Toast.makeText(this, "Smooth mode ON", Toast.LENGTH_SHORT).show()
+            } else {
+                Toast.makeText(this, "Raw mode ON", Toast.LENGTH_SHORT).show()
+            }
         }
         
         findViewById<Button>(R.id.presetSmooth).setOnClickListener { applyPreset("smooth") }
