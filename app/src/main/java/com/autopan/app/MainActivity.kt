@@ -243,6 +243,11 @@ class MainActivity : Activity() {
         }
         registerReceiver(bluetoothReceiver, filter)
         
+        // Check if auto-start requested from accessibility service
+        if (intent?.getBooleanExtra("auto_start", false) == true) {
+            startPanning()
+        }
+        
         updateUI()
         handler.postDelayed({ updateVisual() }, 100)
     }
@@ -415,6 +420,10 @@ class MainActivity : Activity() {
     private fun startPanning() {
         isPanning = true
         currentPosition = 0
+        getSharedPreferences("pan_settings", Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean("was_running", true)
+            .apply()
         toggleButton.text = "STOP PAN"
         statusText.text = "Status: ACTIVE - ${currentPattern.uppercase()}"
         statusText.setTextColor(Color.GREEN)
@@ -424,6 +433,10 @@ class MainActivity : Activity() {
     
     private fun stopPanning() {
         isPanning = false
+        getSharedPreferences("pan_settings", Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean("was_running", false)
+            .apply()
         handler.removeCallbacks(panRunnable)
         executeRootCommand("settings put system master_balance 0.0")
         hideNotification()
