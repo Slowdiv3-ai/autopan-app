@@ -9,6 +9,7 @@ import android.os.Build
 import android.os.IBinder
 import android.view.Gravity
 import android.view.LayoutInflater
+import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
 import android.widget.Button
@@ -19,6 +20,7 @@ class FloatingButtonService : Service() {
     private var floatingView: View? = null
     private var floatingButton: Button? = null
     private var isPanning = false
+    private var isDragging = false
     
     override fun onBind(intent: Intent?): IBinder? = null
     
@@ -39,36 +41,63 @@ class FloatingButtonService : Service() {
             PixelFormat.TRANSLUCENT
         )
         
-        params.gravity = Gravity.TOP or Gravity.END
-        params.x = 0
+        params.gravity = Gravity.TOP or Gravity.START
+        params.x = 100
         params.y = 200
         
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
         windowManager?.addView(floatingView, params)
         
+        // Separate click and drag handling
         floatingButton?.setOnClickListener {
-            togglePanning()
+            if (!isDragging) {
+                togglePanning()
+            }
         }
         
-        floatingView?.setOnTouchListener(object : View.OnTouchListener {
+        floatingButton?.setOnTouchListener(object : View.OnTouchListener {
             private var initialX = 0
             private var initialY = 0
             private var initialTouchX = 0f
             private var initialTouchY = 0f
+            private var moved = false
             
-            override fun onTouch(v: View?, event: android.view.MotionEvent?): Boolean {
+            override fun onTouch(v: View?, event: MotionEvent?): Boolean {
                 when (event?.action) {
-                    android.view.MotionEvent.ACTION_DOWN -> {
+                    MotionEvent.ACTION_DOWN -> {
                         initialX = params.x
                         initialY = params.y
                         initialTouchX = event.rawX
                         initialTouchY = event.rawY
+                        moved = false
+                        isDragging = false
                         return true
                     }
-                    android.view.MotionEvent.ACTION_MOVE -> {
-                        params.x = initialX + (event.rawX - initialTouchX).toInt()
-                        params.y = initialY + (event.rawY - initialTouchY).toInt()
-                        windowManager?.updateViewLayout(floatingView, params)
+                    MotionEvent.ACTION_MOVE -> {
+                        val deltaX = event.rawX - initialTouchX
+                        val deltaY = event.rawY - initialTouchY
+                        
+                        if (Math.abs(deltaX) > 10 || Math.abs(deltaY) > 10) {
+                            isDragging = true
+                            moved = true
+                        }
+                        
+                        if (isDragging) {
+                            params.x = initialX + deltaX.toInt()
+                            params.y = initialY + deltaY.toInt()
+                            windowManager?.updateViewLayout(floatingView, params)
+                        }
+                        return true
+                    }
+                    MotionEvent.ACTION_UP -> {
+                        if (moved && isDragging) {
+                            // Delay click suppression
+                            floatingButton?.postDelayed({ isDragging = false }, 200)
+                        } else {
+                            isDragging = false
+                            // Trigger click manually
+                            floatingButton?.performClick()
+                        }
                         return true
                     }
                 }
