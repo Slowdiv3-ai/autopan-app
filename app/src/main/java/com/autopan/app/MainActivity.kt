@@ -4,10 +4,8 @@ import android.app.Activity
 import android.bluetooth.BluetoothDevice
 import android.content.BroadcastReceiver
 import android.content.Context
-import android.content.Intent
 import android.content.IntentFilter
 import android.graphics.Color
-import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -317,23 +315,14 @@ class MainActivity : Activity() {
     }
     
     private fun startPanService() {
-        val intent = Intent(this, PanService::class.java)
-        intent.action = "START"
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            startForegroundService(intent)
-        } else {
-            startService(intent)
-        }
+        PanService.start(this)
         updateUI()
     }
     
     private fun stopPanService() {
-        val intent = Intent(this, PanService::class.java)
-        intent.action = "STOP"
-        startService(intent)
+        PanService.stop()
         updateUI()
     }
-    
     private fun updateUI() {
         if (PanService.isRunning) {
             toggleButton.text = "STOP PAN"
