@@ -162,84 +162,170 @@
                 android:textColor="#00BCD4"
                 android:layout_marginBottom="15dp"/>
             
-            <!-- Visual pan position indicator -->
-            <TextView
-                android:id="@+id/customVisual"
+        <!-- Visual pan position graph -->
+        <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="60dp"
-                android:gravity="center"
-                android:text="●"
-                android:textSize="30sp"
-                android:textColor="#00BCD4"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
                 android:background="#1E1E1E"
-                android:layout_marginBottom="20dp"/>
-            
-            <!-- Preset buttons -->
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Quick Presets:"
-                android:textSize="14sp"
-                android:textColor="#BBBBBB"
-                android:layout_marginBottom="10dp"/>
-            
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center"
+                android:padding="10dp"
                 android:layout_marginBottom="20dp">
                 
-                <Button
-                    android:id="@+id/presetSmooth"
-                    android:layout_width="0dp"
+                <!-- Labels: Left, Center, Right -->
+                <LinearLayout
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="Smooth"
-                    android:textSize="12sp"
-                    android:backgroundTint="#4CAF50"
-                    android:layout_margin="2dp"/>
+                    android:orientation="horizontal">
+                    
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="◄ LEFT"
+                        android:textSize="12sp"
+                        android:textColor="#FF5722"
+                        android:gravity="start"/>
+                    
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="CENTER"
+                        android:textSize="12sp"
+                        android:textColor="#FFFFFF"
+                        android:gravity="center"/>
+                    
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="RIGHT ►"
+                        android:textSize="12sp"
+                        android:textColor="#4CAF50"
+                        android:gravity="end"/>
+                    
+                </LinearLayout>
                 
-                <Button
-                    android:id="@+id/presetBounce"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="Bounce"
-                    android:textSize="12sp"
-                    android:backgroundTint="#FF9800"
-                    android:layout_margin="2dp"/>
+                <!-- Visual graph area -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="60dp"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+                    
+                    <!-- Left zone -->
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="match_parent"
+                        android:layout_weight="1"
+                        android:background="#2A1510"
+                        android:gravity="center">
+                        
+                        <TextView
+                            android:id="@+id/leftZoneIndicator"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text=""
+                            android:textSize="24sp"
+                            android:textColor="#FF5722"/>
+                        
+                    </LinearLayout>
+                    
+                    <!-- Center line -->
+                    <View
+                        android:layout_width="2dp"
+                        android:layout_height="match_parent"
+                        android:background="#FFFFFF"/>
+                    
+                    <!-- Right zone -->
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="match_parent"
+                        android:layout_weight="1"
+                        android:background="#102A15"
+                        android:gravity="center">
+                        
+                        <TextView
+                            android:id="@+id/rightZoneIndicator"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text=""
+                            android:textSize="24sp"
+                            android:textColor="#4CAF50"/>
+                        
+                    </LinearLayout>
+                    
+                </LinearLayout>
                 
-                <Button
-                    android:id="@+id/presetCircle"
-                    android:layout_width="0dp"
+                <!-- Position marker -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="20dp"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+                    
+                    <TextView
+                        android:id="@+id/customVisual"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="●"
+                        android:textSize="16sp"
+                        android:textColor="#00BCD4"
+                        android:gravity="center"/>
+                    
+                </LinearLayout>
+                
+                <!-- Scale markers -->
+                <LinearLayout
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="Circle"
-                    android:textSize="12sp"
-                    android:backgroundTint="#2196F3"
-                    android:layout_margin="2dp"/>
+                    android:orientation="horizontal">
+                    
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="-0.8"
+                        android:textSize="10sp"
+                        android:textColor="#888888"
+                        android:gravity="start"/>
+                    
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="-0.4"
+                        android:textSize="10sp"
+                        android:textColor="#888888"
+                        android:gravity="center"/>
+                    
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="0"
+                        android:textSize="10sp"
+                        android:textColor="#FFFFFF"
+                        android:gravity="center"/>
+                    
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="+0.4"
+                        android:textSize="10sp"
+                        android:textColor="#888888"
+                        android:gravity="center"/>
+                    
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="+0.8"
+                        android:textSize="10sp"
+                        android:textColor="#888888"
+                        android:gravity="end"/>
+                    
+                </LinearLayout>
                 
             </LinearLayout>
-            
-            <!-- Step labels and sliders -->
-            <TextView
-                android:id="@+id/stepLabels"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="Step:  1      2      3      4      5      6      7      8"
-                android:textSize="11sp"
-                android:textColor="#888888"
-                android:layout_marginBottom="5dp"/>
-            
-            <!-- Each slider with position indicator -->
-            <LinearLayout
-                android:id="@+id/slidersContainer"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"/>
-            
-        </LinearLayout>
-        
-    </LinearLayout>
-</ScrollView>
