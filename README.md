@@ -1,2 +1,2 @@
 # autopan-app
-It Oscillates audio right to left using root
+It Oscillates headphones audio right to left using root 
