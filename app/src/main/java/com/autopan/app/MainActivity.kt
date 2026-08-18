@@ -84,7 +84,7 @@ class MainActivity : Activity() {
                     currentBalance += (targetBalance - currentBalance) / (smoothingSteps - stepCount)
                     stepCount++
                     executeRootCommand("settings put system master_balance ${String.format("%.2f", currentBalance)}")
-                    handler.postDelayed(this, currentSpeed / smoothingSteps)
+                    handler.postDelayed(this, (currentSpeed / smoothingSteps).toLong())
                 } else {
                     // Get next target
                     val pattern = when (currentPattern) {
@@ -111,7 +111,7 @@ class MainActivity : Activity() {
                     }
                     
                     currentPosition++
-                    handler.postDelayed(this, currentSpeed / (if (smoothAll) smoothingSteps else 1))
+                    handler.postDelayed(this, (currentSpeed / (if (smoothAll) smoothingSteps else 1)).toLong())
                 }
             }
         }
