@@ -28,7 +28,6 @@ class PanAccessibilityService : AccessibilityService() {
         val wasRunning = prefs.getBoolean("was_running", false)
         
         if (wasRunning) {
-            // Restart panning
             val intent = Intent(this, MainActivity::class.java)
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             intent.putExtra("auto_start", true)
@@ -40,7 +39,6 @@ class PanAccessibilityService : AccessibilityService() {
         super.onDestroy()
         isAccessibilityEnabled = false
         
-        // Reset balance when accessibility is disabled
         Thread {
             try {
                 val process = Runtime.getRuntime().exec(arrayOf("su", "-c", "settings put system master_balance 0.0"))
