@@ -24,6 +24,10 @@ jobs:
       with:
         gradle-version: '8.9'
     
+    - name: Generate Keystore
+      run: |
+        keytool -genkeypair -v -keystore app/release.keystore -alias autopan -keyalg RSA -keysize 2048 -validity 10000 -storepass autopan123 -keypass autopan123 -dname "CN=AutoPan, OU=Personal, O=Personal, L=NA, S=NA, C=NA"
+    
     - name: Build APK
       run: gradle assembleDebug
     
