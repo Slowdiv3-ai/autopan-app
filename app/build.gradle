@@ -15,9 +15,22 @@ android {
         versionName "1.0"
     }
     
+    signingConfigs {
+        release {
+            storeFile file("release.keystore")
+            storePassword "autopan123"
+            keyAlias "autopan"
+            keyPassword "autopan123"
+        }
+    }
+    
     buildTypes {
         release {
             minifyEnabled false
+            signingConfig signingConfigs.release
+        }
+        debug {
+            signingConfig signingConfigs.release
         }
     }
     
