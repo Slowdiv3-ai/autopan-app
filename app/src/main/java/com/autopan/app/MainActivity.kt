@@ -11,10 +11,12 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.graphics.Color
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.provider.Settings
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.RadioButton
@@ -23,9 +25,8 @@ import android.widget.SeekBar
 import android.widget.Switch
 import android.widget.TextView
 import android.widget.Toast
-import java.io.BufferedReader
-import java.io.InputStreamReader
 import java.io.DataOutputStream
+import java.io.InputStreamReader
 
 class MainActivity : Activity() {
     
@@ -38,6 +39,7 @@ class MainActivity : Activity() {
     private lateinit var slidersContainer: LinearLayout
     private lateinit var bluetoothSwitch: Switch
     private lateinit var smoothSwitch: Switch
+    private lateinit var accessibilityButton: Button
     private val customSeekBars = mutableListOf<SeekBar>()
     private val sliderLabels = mutableListOf<TextView>()
     
@@ -124,6 +126,7 @@ class MainActivity : Activity() {
         slidersContainer = findViewById(R.id.slidersContainer)
         bluetoothSwitch = findViewById(R.id.bluetoothSwitch)
         smoothSwitch = findViewById(R.id.smoothSwitch)
+        accessibilityButton = findViewById(R.id.accessibilityButton)
         
         val prefs = getSharedPreferences("pan_settings", Context.MODE_PRIVATE)
         currentPattern = prefs.getString("pattern", "smooth") ?: "smooth"
@@ -183,11 +186,6 @@ class MainActivity : Activity() {
         smoothSwitch.setOnCheckedChangeListener { _, isChecked ->
             smoothAll = isChecked
             prefs.edit().putBoolean("smooth_all", isChecked).apply()
-            if (isChecked) {
-                Toast.makeText(this, "Smooth mode ON", Toast.LENGTH_SHORT).show()
-            } else {
-                Toast.makeText(this, "Raw mode ON", Toast.LENGTH_SHORT).show()
-            }
         }
         
         findViewById<Button>(R.id.presetSmooth).setOnClickListener { applyPreset("smooth") }
@@ -202,13 +200,17 @@ class MainActivity : Activity() {
             }
         }
         
+        accessibilityButton.setOnClickListener {
+            val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
+            startActivity(intent)
+            Toast.makeText(this, "Enable Auto Pan Toggle in Accessibility settings", Toast.LENGTH_LONG).show()
+        }
         
         val filter = IntentFilter().apply {
             addAction(BluetoothDevice.ACTION_ACL_CONNECTED)
             addAction(BluetoothDevice.ACTION_ACL_DISCONNECTED)
         }
         registerReceiver(bluetoothReceiver, filter)
-        
         
         updateUI()
         handler.postDelayed({ updateVisual() }, 100)
