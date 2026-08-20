@@ -387,7 +387,10 @@ class MainActivity : Activity() {
         } else {
             startService(intent)
         }
-        updateUI()
+        toggleButton.text = "STOP PAN"
+        statusText.text = "Status: ACTIVE"
+        statusText.setTextColor(Color.GREEN)
+        showNotification()
     }
     
     
@@ -395,13 +398,22 @@ class MainActivity : Activity() {
         val intent = Intent(this, PanService::class.java)
         intent.action = "STOP"
         startService(intent)
-        updateUI()
+        hideNotification()
+        toggleButton.text = "START PAN"
+        statusText.text = "Status: OFF"
+        statusText.setTextColor(Color.RED)
     }
     
-    private fun updateUI() {
-        toggleButton.text = if (isPanning) "STOP PAN" else "START PAN"
-        statusText.text = if (isPanning) "Status: ACTIVE" else "Status: OFF"
-        statusText.setTextColor(if (isPanning) Color.GREEN else Color.RED)
+        private fun updateUI() {
+        if (PanService.isRunning) {
+            toggleButton.text = "STOP PAN"
+            statusText.text = "Status: ACTIVE"
+            statusText.setTextColor(Color.GREEN)
+        } else {
+            toggleButton.text = "START PAN"
+            statusText.text = "Status: OFF"
+            statusText.setTextColor(Color.RED)
+        }
     }
     
     private fun executeRootCommand(command: String) {
