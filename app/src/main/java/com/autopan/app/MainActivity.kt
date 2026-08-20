@@ -394,43 +394,56 @@ class MainActivity : Activity() {
         statusText.setTextColor(Color.GREEN)
         showNotification()
         
-        // Start panning in a dedicated thread
         panningThread = Thread {
             var currentBalance = 0.0f
             var targetBalance = 0.0f
             
             while (isPanning) {
-                val pattern = when (currentPattern) {
-                    "custom" -> customPattern
-                    else -> patterns[currentPattern] ?: patterns["smooth"]!!
-                }
-                
-                targetBalance = pattern[currentPosition % pattern.size].toFloat()
-                
-                if (smoothAll) {
-                    val smoothingSteps = when {
-                        currentSpeed <= 500 -> 10
-                        currentSpeed <= 1000 -> 16
-                        currentSpeed <= 2000 -> 24
-                        currentSpeed <= 3000 -> 32
-                        else -> 40
+                try {
+                    val pattern = when (currentPattern) {
+                        "custom" -> customPattern
+                        else -> patterns[currentPattern] ?: patterns["smooth"]!!
                     }
                     
-                    val stepDelay = currentSpeed / smoothingSteps
+                    targetBalance = pattern[currentPosition % pattern.size].toFloat()
                     
-                    for (step in 1..smoothingSteps) {
-                        if (!isPanning) break
-                        currentBalance += (targetBalance - currentBalance) * 0.2f
+                    if (smoothAll) {
+                        val smoothingSteps = when {
+                            currentSpeed <= 500 -> 10
+                            currentSpeed <= 1000 -> 16
+                            currentSpeed <= 2000 -> 24
+                            currentSpeed <= 3000 -> 32
+                            else -> 40
+                        }
+                        
+                        val stepDelay = currentSpeed / smoothingSteps
+                        
+                        for (step in 1..smoothingSteps) {
+                            if (!isPanning) break
+                            currentBalance += (targetBalance - currentBalance) * 0.2f
+                            executeRootCommandSync("settings put system master_balance ${String.format("%.3f", currentBalance)}")
+                            try {
+                                Thread.sleep(stepDelay.toLong())
+                            } catch (e: InterruptedException) {
+                                break
+                            }
+                        }
+                    } else {
+                        currentBalance = targetBalance
                         executeRootCommandSync("settings put system master_balance ${String.format("%.3f", currentBalance)}")
-                        Thread.sleep(stepDelay.toLong())
+                        try {
+                            Thread.sleep(currentSpeed.toLong())
+                        } catch (e: InterruptedException) {
+                            break
+                        }
                     }
-                } else {
-                    currentBalance = targetBalance
-                    executeRootCommandSync("settings put system master_balance ${String.format("%.3f", currentBalance)}")
-                    Thread.sleep(currentSpeed.toLong())
+                    
+                    currentPosition++
+                } catch (e: InterruptedException) {
+                    break
+                } catch (e: Exception) {
+                    e.printStackTrace()
                 }
-                
-                currentPosition++
             }
         }
         panningThread?.start()
