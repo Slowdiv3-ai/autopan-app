@@ -26,7 +26,6 @@ import android.widget.Switch
 import android.widget.TextView
 import android.widget.Toast
 import java.io.DataOutputStream
-import java.io.InputStreamReader
 
 class MainActivity : Activity() {
     
@@ -43,17 +42,19 @@ class MainActivity : Activity() {
     private val customSeekBars = mutableListOf<SeekBar>()
     private val sliderLabels = mutableListOf<TextView>()
     
+    @Volatile
     private var isPanning = false
     private val handler = Handler(Looper.getMainLooper())
     private var currentPosition = 0
     private var currentSpeed = 1000
     private var currentPattern = "smooth"
     private var customPattern = arrayOf(
-        "-0.8", "-0.6", "-0.5", "-0.3", "-0.15", "0.0", "0.15", 
+        "-0.8", "-0.6", "-0.5", "-0.3", "-0.15", "0.0", "0.15",
         "0.3", "0.5", "0.6", "0.5", "0.3", "0.15", "0.0"
     )
     private var bluetoothAutoPan = false
     private var smoothAll = true
+    private var panningThread: Thread? = null
     
     private val patterns = mapOf(
         "smooth" to arrayOf(
@@ -78,7 +79,7 @@ class MainActivity : Activity() {
     
     private val presets = mapOf(
         "smooth" to arrayOf(
-            "-0.8", "-0.6", "-0.4", "-0.2", "0.0", "0.2", "0.4", 
+            "-0.8", "-0.6", "-0.4", "-0.2", "0.0", "0.2", "0.4",
             "0.6", "0.8", "0.6", "0.4", "0.2", "0.0", "-0.2"
         ),
         "bounce" to arrayOf(
@@ -90,50 +91,6 @@ class MainActivity : Activity() {
             "0.6", "0.3", "0.0", "-0.3", "-0.6", "-0.8", "-0.6"
         )
     )
-    
-        private val panRunnable = object : Runnable {
-        private var currentBalance = 0.0f
-        private var targetBalance = 0.0f
-        private var smoothingSteps = 10
-        private var stepCount = 0
-        
-        override fun run() {
-            if (isPanning) {
-                if (smoothAll && stepCount < smoothingSteps && stepCount > 0) {
-                    currentBalance += (targetBalance - currentBalance) / (smoothingSteps - stepCount)
-                    stepCount++
-                    executeRootCommand("settings put system master_balance ${String.format("%.3f", currentBalance)}")
-                    handler.postDelayed(this, (currentSpeed / smoothingSteps).toLong())
-                } else {
-                    val pattern = when (currentPattern) {
-                        "custom" -> customPattern
-                        else -> patterns[currentPattern] ?: patterns["smooth"]!!
-                    }
-                    targetBalance = pattern[currentPosition % pattern.size].toFloat()
-                    
-                    if (smoothAll) {
-                        // More smoothing steps for higher speeds
-                        smoothingSteps = when {
-                            currentSpeed <= 500 -> 10
-                            currentSpeed <= 1000 -> 16
-                            currentSpeed <= 2000 -> 24
-                            currentSpeed <= 3000 -> 32
-                            else -> 40
-                        }
-                        stepCount = 1
-                        currentBalance += (targetBalance - currentBalance) * 0.2f
-                        executeRootCommand("settings put system master_balance ${String.format("%.3f", currentBalance)}")
-                    } else {
-                        currentBalance = targetBalance
-                        executeRootCommand("settings put system master_balance ${String.format("%.3f", currentBalance)}")
-                    }
-                    
-                    currentPosition++
-                    handler.postDelayed(this, (currentSpeed / (if (smoothAll) smoothingSteps else 1)).toLong())
-                }
-            }
-        }
-    }
     
     private val bluetoothReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -265,14 +222,14 @@ class MainActivity : Activity() {
         for (i in 0 until 14) {
             val row = LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL
-                setPadding(0, 8, 0, 8)
+                setPadding(0, 4, 0, 4)
             }
             
             val label = TextView(this).apply {
                 text = "${i + 1}"
-                textSize = 14f
+                textSize = 12f
                 setTextColor(Color.WHITE)
-                width = 30
+                width = 28
             }
             
             val seekBar = SeekBar(this).apply {
@@ -284,9 +241,9 @@ class MainActivity : Activity() {
             
             val valueLabel = TextView(this).apply {
                 text = customPattern[i]
-                textSize = 12f
+                textSize = 11f
                 setTextColor(Color.CYAN)
-                width = 45
+                width = 42
             }
             
             seekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
@@ -329,7 +286,7 @@ class MainActivity : Activity() {
             
             val dot = TextView(this).apply {
                 text = "${i + 1}"
-                textSize = 12f
+                textSize = 10f
                 setTextColor(Color.parseColor("#00BCD4"))
                 tag = i
             }
@@ -365,7 +322,7 @@ class MainActivity : Activity() {
                     val value = customPattern[i].toFloat()
                     
                     val position = (value + 0.8) / 1.6
-                    val leftMargin = (position * (graphWidth - 40)).toInt()
+                    val leftMargin = (position * (graphWidth - 35)).toInt()
                     
                     val params = dot.layoutParams as LinearLayout.LayoutParams
                     params.leftMargin = leftMargin
@@ -423,26 +380,72 @@ class MainActivity : Activity() {
     }
     
     private fun startPanning() {
+        if (isPanning) return
+        
         isPanning = true
         currentPosition = 0
         getSharedPreferences("pan_settings", Context.MODE_PRIVATE)
             .edit()
             .putBoolean("was_running", true)
             .apply()
+        
         toggleButton.text = "STOP PAN"
         statusText.text = "Status: ACTIVE - ${currentPattern.uppercase()}"
         statusText.setTextColor(Color.GREEN)
         showNotification()
-        handler.post(panRunnable)
+        
+        // Start panning in a dedicated thread
+        panningThread = Thread {
+            var currentBalance = 0.0f
+            var targetBalance = 0.0f
+            
+            while (isPanning) {
+                val pattern = when (currentPattern) {
+                    "custom" -> customPattern
+                    else -> patterns[currentPattern] ?: patterns["smooth"]!!
+                }
+                
+                targetBalance = pattern[currentPosition % pattern.size].toFloat()
+                
+                if (smoothAll) {
+                    val smoothingSteps = when {
+                        currentSpeed <= 500 -> 10
+                        currentSpeed <= 1000 -> 16
+                        currentSpeed <= 2000 -> 24
+                        currentSpeed <= 3000 -> 32
+                        else -> 40
+                    }
+                    
+                    val stepDelay = currentSpeed / smoothingSteps
+                    
+                    for (step in 1..smoothingSteps) {
+                        if (!isPanning) break
+                        currentBalance += (targetBalance - currentBalance) * 0.2f
+                        executeRootCommandSync("settings put system master_balance ${String.format("%.3f", currentBalance)}")
+                        Thread.sleep(stepDelay.toLong())
+                    }
+                } else {
+                    currentBalance = targetBalance
+                    executeRootCommandSync("settings put system master_balance ${String.format("%.3f", currentBalance)}")
+                    Thread.sleep(currentSpeed.toLong())
+                }
+                
+                currentPosition++
+            }
+        }
+        panningThread?.start()
     }
     
     private fun stopPanning() {
         isPanning = false
+        panningThread?.interrupt()
+        panningThread = null
+        
         getSharedPreferences("pan_settings", Context.MODE_PRIVATE)
             .edit()
             .putBoolean("was_running", false)
             .apply()
-        handler.removeCallbacks(panRunnable)
+        
         executeRootCommand("settings put system master_balance 0.0")
         hideNotification()
         toggleButton.text = "START PAN"
@@ -458,18 +461,22 @@ class MainActivity : Activity() {
     
     private fun executeRootCommand(command: String) {
         Thread {
-            try {
-                val process = Runtime.getRuntime().exec("su")
-                val outputStream = DataOutputStream(process.outputStream)
-                outputStream.writeBytes("$command\n")
-                outputStream.writeBytes("exit\n")
-                outputStream.flush()
-                process.waitFor()
-                outputStream.close()
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
+            executeRootCommandSync(command)
         }.start()
+    }
+    
+    private fun executeRootCommandSync(command: String) {
+        try {
+            val process = Runtime.getRuntime().exec("su")
+            val outputStream = DataOutputStream(process.outputStream)
+            outputStream.writeBytes("$command\n")
+            outputStream.writeBytes("exit\n")
+            outputStream.flush()
+            process.waitFor()
+            outputStream.close()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
     
     override fun onResume() {
