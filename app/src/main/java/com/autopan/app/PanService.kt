@@ -60,19 +60,11 @@ class PanService : Service() {
         }
         return START_STICKY
     }
-    
     private fun startPanning() {
         if (isRunning) return
         
         isRunning = true
         currentPosition = 0
-        
-        val prefs = getSharedPreferences("pan_settings", Context.MODE_PRIVATE)
-        currentSpeed = prefs.getInt("speed", 1000)
-        currentPattern = prefs.getString("pattern", "smooth") ?: "smooth"
-        smoothAll = prefs.getBoolean("smooth_all", true)
-        val savedCustom = prefs.getString("custom_pattern", "-0.8,-0.6,-0.5,-0.3,-0.15,0.0,0.15,0.3,0.5,0.6,0.5,0.3,0.15,0.0")
-        customPattern = savedCustom?.split(",")?.toTypedArray() ?: customPattern
         
         startForeground(1, createNotification())
         
@@ -82,6 +74,14 @@ class PanService : Service() {
             
             while (isRunning) {
                 try {
+                    // Read preferences LIVE on every cycle
+                    val prefs = getSharedPreferences("pan_settings", Context.MODE_PRIVATE)
+                    currentSpeed = prefs.getInt("speed", 1000)
+                    currentPattern = prefs.getString("pattern", "smooth") ?: "smooth"
+                    smoothAll = prefs.getBoolean("smooth_all", true)
+                    val savedCustom = prefs.getString("custom_pattern", "-0.8,-0.6,-0.5,-0.3,-0.15,0.0,0.15,0.3,0.5,0.6,0.5,0.3,0.15,0.0")
+                    customPattern = savedCustom?.split(",")?.toTypedArray() ?: customPattern
+                    
                     val pattern = when (currentPattern) {
                         "custom" -> customPattern
                         else -> patterns[currentPattern] ?: patterns["smooth"]!!
@@ -131,6 +131,8 @@ class PanService : Service() {
     
     private fun stopPanning() {
         isRunning = false
+        panningThread?.interrupt()
+        panningThread = null
         executeRootCommand("settings put system master_balance 0.0")
         stopForeground(true)
         stopSelf()
