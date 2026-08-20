@@ -1,17 +1,12 @@
 package com.autopan.app
 
 import android.app.Activity
-import android.app.Notification
-import android.app.NotificationChannel
-import android.app.NotificationManager
-import android.app.PendingIntent
 import android.bluetooth.BluetoothDevice
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.graphics.Color
-import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -42,10 +37,7 @@ class MainActivity : Activity() {
     private val customSeekBars = mutableListOf<SeekBar>()
     private val sliderLabels = mutableListOf<TextView>()
     
-    @Volatile
-    private var isPanning = false
     private val handler = Handler(Looper.getMainLooper())
-    private var currentPosition = 0
     private var currentSpeed = 1000
     private var currentPattern = "smooth"
     private var customPattern = arrayOf(
@@ -54,28 +46,6 @@ class MainActivity : Activity() {
     )
     private var bluetoothAutoPan = false
     private var smoothAll = true
-    private var panningThread: Thread? = null
-    
-    private val patterns = mapOf(
-        "smooth" to arrayOf(
-            "-0.8", "-0.6", "-0.4", "-0.2", "0.0",
-            "0.2", "0.4", "0.6", "0.8", "0.6",
-            "0.4", "0.2", "0.0", "-0.2", "-0.4", "-0.6"
-        ),
-        "hard" to arrayOf("-0.8", "0.0", "0.8", "0.0"),
-        "wave" to arrayOf(
-            "-0.8", "-0.4", "0.0", "0.4", "0.8",
-            "0.4", "0.0", "-0.4"
-        ),
-        "subtle" to arrayOf(
-            "-0.3", "-0.15", "0.0", "0.15", "0.3",
-            "0.15", "0.0", "-0.15"
-        ),
-        "crazy" to arrayOf(
-            "-0.8", "0.8", "-0.4", "0.4", "-0.8",
-            "0.8", "-0.2", "0.2", "0.0"
-        )
-    )
     
     private val presets = mapOf(
         "smooth" to arrayOf(
@@ -96,13 +66,13 @@ class MainActivity : Activity() {
         override fun onReceive(context: Context?, intent: Intent?) {
             when (intent?.action) {
                 BluetoothDevice.ACTION_ACL_CONNECTED -> {
-                    if (bluetoothAutoPan && !isPanning) {
+                    if (bluetoothAutoPan && !PanService.isRunning) {
                         startPanning()
                         Toast.makeText(this@MainActivity, "Bluetooth connected - Panning started", Toast.LENGTH_SHORT).show()
                     }
                 }
                 BluetoothDevice.ACTION_ACL_DISCONNECTED -> {
-                    if (bluetoothAutoPan && isPanning) {
+                    if (bluetoothAutoPan && PanService.isRunning) {
                         stopPanning()
                         Toast.makeText(this@MainActivity, "Bluetooth disconnected - Panning stopped", Toast.LENGTH_SHORT).show()
                     }
@@ -172,7 +142,6 @@ class MainActivity : Activity() {
                 else -> "smooth"
             }
             prefs.edit().putString("pattern", currentPattern).apply()
-            currentPosition = 0
             customContainer.visibility = if (currentPattern == "custom") LinearLayout.VISIBLE else LinearLayout.GONE
         }
         
@@ -191,7 +160,7 @@ class MainActivity : Activity() {
         findViewById<Button>(R.id.presetCircle).setOnClickListener { applyPreset("circle") }
         
         toggleButton.setOnClickListener {
-            if (isPanning) {
+            if (PanService.isRunning) {
                 stopPanning()
             } else {
                 startPanning()
@@ -348,37 +317,6 @@ class MainActivity : Activity() {
             .apply()
     }
     
-    private fun showNotification() {
-        val notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
-        
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                "pan_channel",
-                "Auto Pan",
-                NotificationManager.IMPORTANCE_LOW
-            )
-            notificationManager.createNotificationChannel(channel)
-        }
-        
-        val intent = Intent(this, MainActivity::class.java)
-        val pendingIntent = PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_IMMUTABLE)
-        
-        val notification = Notification.Builder(this, "pan_channel")
-            .setContentTitle("Auto Pan Active")
-            .setContentText("Panning: $currentPattern")
-            .setSmallIcon(android.R.drawable.ic_media_play)
-            .setContentIntent(pendingIntent)
-            .setOngoing(true)
-            .build()
-        
-        notificationManager.notify(1, notification)
-    }
-    
-    private fun hideNotification() {
-        val notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
-        notificationManager.cancel(1)
-    }
-
     private fun startPanning() {
         val intent = Intent(this, PanService::class.java)
         intent.action = "START"
@@ -387,24 +325,26 @@ class MainActivity : Activity() {
         } else {
             startService(intent)
         }
-        toggleButton.text = "STOP PAN"
-        statusText.text = "Status: ACTIVE"
-        statusText.setTextColor(Color.GREEN)
-        showNotification()
+        handler.postDelayed({
+            toggleButton.text = "STOP PAN"
+            statusText.text = "Status: ACTIVE"
+            statusText.setTextColor(Color.GREEN)
+        }, 500)
     }
-    
     
     private fun stopPanning() {
         val intent = Intent(this, PanService::class.java)
         intent.action = "STOP"
         startService(intent)
-        hideNotification()
-        toggleButton.text = "START PAN"
-        statusText.text = "Status: OFF"
-        statusText.setTextColor(Color.RED)
+        executeRootCommand("settings put system master_balance 0.0")
+        handler.postDelayed({
+            toggleButton.text = "START PAN"
+            statusText.text = "Status: OFF"
+            statusText.setTextColor(Color.RED)
+        }, 500)
     }
     
-        private fun updateUI() {
+    private fun updateUI() {
         if (PanService.isRunning) {
             toggleButton.text = "STOP PAN"
             statusText.text = "Status: ACTIVE"
@@ -418,34 +358,27 @@ class MainActivity : Activity() {
     
     private fun executeRootCommand(command: String) {
         Thread {
-            executeRootCommandSync(command)
+            try {
+                val process = Runtime.getRuntime().exec("su")
+                val outputStream = DataOutputStream(process.outputStream)
+                outputStream.writeBytes("$command\n")
+                outputStream.writeBytes("exit\n")
+                outputStream.flush()
+                process.waitFor()
+                outputStream.close()
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         }.start()
-    }
-    
-    private fun executeRootCommandSync(command: String) {
-        try {
-            val process = Runtime.getRuntime().exec("su")
-            val outputStream = DataOutputStream(process.outputStream)
-            outputStream.writeBytes("$command\n")
-            outputStream.writeBytes("exit\n")
-            outputStream.flush()
-            process.waitFor()
-            outputStream.close()
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
     }
     
     override fun onResume() {
         super.onResume()
-        updateUI()
+        handler.postDelayed({ updateUI() }, 300)
     }
     
     override fun onDestroy() {
         super.onDestroy()
-        if (isPanning) {
-            stopPanning()
-        }
         try {
             unregisterReceiver(bluetoothReceiver)
         } catch (e: Exception) {
