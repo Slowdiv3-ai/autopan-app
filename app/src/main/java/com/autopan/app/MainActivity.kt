@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.graphics.Color
+import android.media.audiofx.AudioEffect
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -21,6 +22,7 @@ import android.widget.Switch
 import android.widget.TextView
 import android.widget.Toast
 import java.io.DataOutputStream
+import java.util.UUID
 
 class MainActivity : Activity() {
     
@@ -33,6 +35,7 @@ class MainActivity : Activity() {
     private lateinit var slidersContainer: LinearLayout
     private lateinit var bluetoothSwitch: Switch
     private lateinit var smoothSwitch: Switch
+    private lateinit var movieModeSwitch: Switch
     private lateinit var accessibilityButton: Button
     private val customSeekBars = mutableListOf<SeekBar>()
     private val sliderLabels = mutableListOf<TextView>()
@@ -46,6 +49,7 @@ class MainActivity : Activity() {
     )
     private var bluetoothAutoPan = false
     private var smoothAll = true
+    private var movieModeEnabled = false
     
     private val presets = mapOf(
         "smooth" to arrayOf(
@@ -94,6 +98,7 @@ class MainActivity : Activity() {
         slidersContainer = findViewById(R.id.slidersContainer)
         bluetoothSwitch = findViewById(R.id.bluetoothSwitch)
         smoothSwitch = findViewById(R.id.smoothSwitch)
+        movieModeSwitch = findViewById(R.id.movieModeSwitch)
         accessibilityButton = findViewById(R.id.accessibilityButton)
         
         val prefs = getSharedPreferences("pan_settings", Context.MODE_PRIVATE)
@@ -101,6 +106,7 @@ class MainActivity : Activity() {
         currentSpeed = prefs.getInt("speed", 1000)
         bluetoothAutoPan = prefs.getBoolean("bluetooth_auto_pan", false)
         smoothAll = prefs.getBoolean("smooth_all", true)
+        movieModeEnabled = prefs.getBoolean("movie_mode", false)
         val savedCustom = prefs.getString("custom_pattern", "-0.8,-0.6,-0.5,-0.3,-0.15,0.0,0.15,0.3,0.5,0.6,0.5,0.3,0.15,0.0")
         customPattern = savedCustom?.split(",")?.toTypedArray() ?: customPattern
         
@@ -117,6 +123,7 @@ class MainActivity : Activity() {
         speedText.text = "Speed: ${currentSpeed}ms"
         bluetoothSwitch.isChecked = bluetoothAutoPan
         smoothSwitch.isChecked = smoothAll
+        movieModeSwitch.isChecked = movieModeEnabled
         
         createCustomSliders()
         createGraphDots()
@@ -155,6 +162,20 @@ class MainActivity : Activity() {
             prefs.edit().putBoolean("smooth_all", isChecked).apply()
         }
         
+        movieModeSwitch.setOnCheckedChangeListener { _, isChecked ->
+            movieModeEnabled = isChecked
+            prefs.edit().putBoolean("movie_mode", isChecked).apply()
+            
+            if (isChecked) {
+                sendV4ACommand(0x10040, 1)
+                sendV4ACommand(0x10041, 2000)
+                Toast.makeText(this, "Movie Mode ON", Toast.LENGTH_SHORT).show()
+            } else {
+                sendV4ACommand(0x10040, 0)
+                Toast.makeText(this, "Movie Mode OFF", Toast.LENGTH_SHORT).show()
+            }
+        }
+        
         findViewById<Button>(R.id.presetSmooth).setOnClickListener { applyPreset("smooth") }
         findViewById<Button>(R.id.presetBounce).setOnClickListener { applyPreset("bounce") }
         findViewById<Button>(R.id.presetCircle).setOnClickListener { applyPreset("circle") }
@@ -181,6 +202,14 @@ class MainActivity : Activity() {
         
         updateUI()
         handler.postDelayed({ updateVisual() }, 100)
+        
+        // Re-apply movie mode if it was enabled
+        if (movieModeEnabled) {
+            handler.postDelayed({
+                sendV4ACommand(0x10040, 1)
+                sendV4ACommand(0x10041, 2000)
+            }, 1000)
+        }
     }
     
     private fun createCustomSliders() {
@@ -315,6 +344,34 @@ class MainActivity : Activity() {
             .edit()
             .putString("custom_pattern", values)
             .apply()
+    }
+    
+    private fun sendV4ACommand(param: Int, value: Int) {
+        Thread {
+            try {
+                val viperUuid = UUID.fromString("90380da3-8536-4744-a6a3-5731970e640f")
+                val effect = AudioEffect(viperUuid, viperUuid, 0, 0)
+                
+                val command = ByteArray(4).apply {
+                    this[0] = (param and 0xFF).toByte()
+                    this[1] = ((param shr 8) and 0xFF).toByte()
+                    this[2] = ((param shr 16) and 0xFF).toByte()
+                    this[3] = ((param shr 24) and 0xFF).toByte()
+                }
+                
+                val valueBytes = ByteArray(4).apply {
+                    this[0] = (value and 0xFF).toByte()
+                    this[1] = ((value shr 8) and 0xFF).toByte()
+                    this[2] = ((value shr 16) and 0xFF).toByte()
+                    this[3] = ((value shr 24) and 0xFF).toByte()
+                }
+                
+                effect.setParameter(command, valueBytes)
+                effect.release()
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }.start()
     }
     
     private fun startPanning() {
