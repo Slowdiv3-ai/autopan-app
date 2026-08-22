@@ -7,7 +7,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.graphics.Color
-import android.media.audiofx.AudioEffect
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -22,7 +21,6 @@ import android.widget.Switch
 import android.widget.TextView
 import android.widget.Toast
 import java.io.DataOutputStream
-import java.util.UUID
 
 class MainActivity : Activity() {
     
@@ -349,25 +347,13 @@ class MainActivity : Activity() {
     private fun sendV4ACommand(param: Int, value: Int) {
         Thread {
             try {
-                val viperUuid = UUID.fromString("90380da3-8536-4744-a6a3-5731970e640f")
-                val effect = AudioEffect(viperUuid, viperUuid, 0, 0)
-                
-                val command = ByteArray(4).apply {
-                    this[0] = (param and 0xFF).toByte()
-                    this[1] = ((param shr 8) and 0xFF).toByte()
-                    this[2] = ((param shr 16) and 0xFF).toByte()
-                    this[3] = ((param shr 24) and 0xFF).toByte()
-                }
-                
-                val valueBytes = ByteArray(4).apply {
-                    this[0] = (value and 0xFF).toByte()
-                    this[1] = ((value shr 8) and 0xFF).toByte()
-                    this[2] = ((value shr 16) and 0xFF).toByte()
-                    this[3] = ((value shr 24) and 0xFF).toByte()
-                }
-                
-                effect.setParameter(command, valueBytes)
-                effect.release()
+                val process = Runtime.getRuntime().exec("su")
+                val outputStream = DataOutputStream(process.outputStream)
+                outputStream.writeBytes("settings put system viper4android_param_${param} $value\n")
+                outputStream.writeBytes("exit\n")
+                outputStream.flush()
+                process.waitFor()
+                outputStream.close()
             } catch (e: Exception) {
                 e.printStackTrace()
             }
