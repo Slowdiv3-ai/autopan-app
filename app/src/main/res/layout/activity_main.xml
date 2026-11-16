@@ -1,310 +1,412 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#121212">
-    
+    android:background="#F7F6F2" 
+    android:fillViewport="true">
+
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:gravity="center"
-        android:padding="20dp">
-        
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Auto Pan Control"
-            android:textSize="28sp"
-            android:textColor="#FFFFFF"
-            android:layout_marginBottom="20dp"/>
-        
-        <TextView
-            android:id="@+id/statusText"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Status: OFF"
-            android:textSize="20sp"
-            android:textColor="#FF4444"
-            android:layout_marginBottom="20dp"/>
-        
-        <Button
-            android:id="@+id/toggleButton"
-            android:layout_width="200dp"
-            android:layout_height="200dp"
-            android:text="START PAN"
-            android:textSize="24sp"
-            android:backgroundTint="#4CAF50"
-            android:layout_marginBottom="20dp"/>
-        
-        <Button
-            android:id="@+id/accessibilityButton"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Enable Accessibility Service"
-            android:textSize="14sp"
-            android:backgroundTint="#FF9800"
-            android:layout_marginBottom="20dp"/>
-        
-        
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Bluetooth Auto-Pan:"
-            android:textSize="16sp"
-            android:textColor="#FFFFFF"
-            android:layout_marginBottom="5dp"/>
-        
-        <Switch
-            android:id="@+id/bluetoothSwitch"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="10dp"/>
-        
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Smooth All Patterns:"
-            android:textSize="16sp"
-            android:textColor="#FFFFFF"
-            android:layout_marginBottom="5dp"/>
-        
-        <Switch
-            android:id="@+id/smoothSwitch"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="20dp"/>
+        android:padding="20dp"
+        android:gravity="center_horizontal">
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Movie Mode (Frequency Pan):"
-            android:textSize="16sp"
-            android:textColor="#FFFFFF"
-            android:layout_marginBottom="5dp"/>
-        
-        <Switch
-            android:id="@+id/movieModeSwitch"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="20dp"/>
-        
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Panning Speed:"
-            android:textSize="18sp"
-            android:textColor="#FFFFFF"
-            android:layout_marginBottom="10dp"/>
-        
-        <TextView
-            android:id="@+id/speedText"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Speed: 1000ms"
-            android:textSize="14sp"
-            android:textColor="#BBBBBB"
-            android:layout_marginBottom="5dp"/>
-        
-        <SeekBar
-            android:id="@+id/speedSeekBar"
+        <!-- TOP BAR -->
+        <RelativeLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:max="30"
-            android:progress="10"
-            android:layout_marginBottom="30dp"/>
-        
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Select Pattern:"
-            android:textSize="20sp"
-            android:textColor="#FFFFFF"
-            android:layout_marginBottom="10dp"/>
-        
-        <RadioGroup
-            android:id="@+id/patternGroup"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:padding="10dp">
+            android:layout_marginBottom="24dp"
+            android:layout_marginTop="16dp">
             
-            <RadioButton
-                android:id="@+id/radioSmooth"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Smooth"
-                android:textColor="#FFFFFF"
-                android:buttonTint="#4CAF50"/>
-            
-            <RadioButton
-                android:id="@+id/radioHard"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Hard Left/Right"
-                android:textColor="#FFFFFF"
-                android:buttonTint="#FF9800"/>
-            
-            <RadioButton
-                android:id="@+id/radioWave"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Wave"
-                android:textColor="#FFFFFF"
-                android:buttonTint="#2196F3"/>
-            
-            <RadioButton
-                android:id="@+id/radioSubtle"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Subtle"
-                android:textColor="#FFFFFF"
-                android:buttonTint="#9C27B0"/>
-            
-            <RadioButton
-                android:id="@+id/radioCrazy"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Crazy"
-                android:textColor="#FFFFFF"
-                android:buttonTint="#F44336"/>
-            
-            <RadioButton
-                android:id="@+id/radioCustom"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Custom Pattern"
-                android:textColor="#FFFFFF"
-                android:buttonTint="#00BCD4"/>
-            
-        </RadioGroup>
-        
-        <LinearLayout
-            android:id="@+id/customContainer"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:visibility="gone"
-            android:padding="10dp">
-            
+            <ImageButton
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:src="@android:drawable/ic_menu_my_calendar"
+                android:background="@drawable/bg_icon_circle"
+                app:tint="#333333"
+                android:contentDescription="Settings"/>
+                
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Custom Pattern:"
-                android:textSize="16sp"
-                android:textColor="#00BCD4"
-                android:layout_marginBottom="15dp"/>
-            
+                android:text="Auto Pan Control"
+                android:layout_centerInParent="true"
+                android:textColor="#333333"
+                android:textSize="18sp"
+                android:textStyle="bold"/>
+                
+            <ImageButton
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:src="@android:drawable/ic_popup_reminder"
+                android:layout_alignParentEnd="true"
+                android:background="@drawable/bg_icon_circle"
+                app:tint="#333333"
+                android:contentDescription="Notifications"/>
+        </RelativeLayout>
+
+        <!-- THE INTERACTIVE RING AREA -->
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="380dp"
+            android:layout_marginBottom="16dp">
+
+            <View
+                android:layout_width="280dp"
+                android:layout_height="280dp"
+                android:layout_gravity="center"
+                android:background="@drawable/bg_icon_circle"
+                android:alpha="0.5"/>
+
+            <!-- Central Drone Image -->
+            <ImageView
+                android:id="@+id/ivCenterPerson"
+                android:layout_width="140dp"
+                android:layout_height="140dp"
+                android:layout_gravity="center"
+                android:src="@drawable/ic_launcher_foreground" 
+                android:background="@drawable/bg_icon_circle"
+                android:clipToOutline="true"
+                android:scaleType="centerCrop"/>
+
+            <!-- The Custom Ring View -->
+            <com.autopan.app.PanRingView
+                android:id="@+id/panRingView"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent" />
+                
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:layout_marginTop="200dp">
+                
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Status: OFF"
+                    android:id="@+id/statusText"
+                    android:textColor="#FF5252"
+                    android:textSize="16sp"
+                    android:textStyle="bold"/>
+            </LinearLayout>
+        </FrameLayout>
+
+        <!-- MAIN CONTROLS CARD -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@drawable/bg_card"
+            android:padding="20dp"
+            android:elevation="4dp"
+            android:layout_marginBottom="16dp">
+
+            <Button
+                android:id="@+id/toggleButton"
+                android:layout_width="match_parent"
+                android:layout_height="60dp"
+                android:text="START PAN"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:textColor="#FFFFFF"
+                android:background="@drawable/bg_pill_button"
+                android:layout_marginBottom="16dp"
+                app:backgroundTint="@null" />
+
+            <Button
+                android:id="@+id/accessibilityButton"
+                android:layout_width="match_parent"
+                android:layout_height="50dp"
+                android:text="Enable Accessibility Service"
+                android:textSize="14sp"
+                android:textColor="#FFFFFF"
+                android:background="@drawable/bg_pill_button_orange"
+                android:layout_marginBottom="20dp"
+                app:backgroundTint="@null" />
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="#EEEEEE"
+                android:layout_marginBottom="16dp"/>
+
+            <!-- Switches -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:background="#1E1E1E"
-                android:padding="10dp"
-                android:layout_marginBottom="20dp">
-                
-                <LinearLayout
-                    android:layout_width="match_parent"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="12dp">
+                <TextView
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:orientation="horizontal">
-                    
-                    <TextView
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="LEFT"
-                        android:textSize="12sp"
-                        android:textColor="#FF5722"
-                        android:gravity="start"/>
-                    
-                    <TextView
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="CENTER"
-                        android:textSize="12sp"
-                        android:textColor="#FFFFFF"
-                        android:gravity="center"/>
-                    
-                    <TextView
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="RIGHT"
-                        android:textSize="12sp"
-                        android:textColor="#4CAF50"
-                        android:gravity="end"/>
-                    
-                </LinearLayout>
-                
-                <LinearLayout
-                    android:id="@+id/graphArea"
-                    android:layout_width="match_parent"
-                    android:layout_height="200dp"
-                    android:orientation="vertical"
-                    android:layout_marginTop="5dp"
-                    android:layout_marginBottom="5dp"/>
-                
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal">
-                    
-                    <TextView
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="-0.8"
-                        android:textSize="10sp"
-                        android:textColor="#888888"
-                        android:gravity="start"/>
-                    
-                    <TextView
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="-0.4"
-                        android:textSize="10sp"
-                        android:textColor="#888888"
-                        android:gravity="center"/>
-                    
-                    <TextView
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="0"
-                        android:textSize="10sp"
-                        android:textColor="#FFFFFF"
-                        android:gravity="center"/>
-                    
-                    <TextView
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="+0.4"
-                        android:textSize="10sp"
-                        android:textColor="#888888"
-                        android:gravity="center"/>
-                    
-                    <TextView
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="+0.8"
-                        android:textSize="10sp"
-                        android:textColor="#888888"
-                        android:gravity="end"/>
-                    
-                </LinearLayout>
-                
+                    android:layout_weight="1"
+                    android:text="Bluetooth Auto-Pan"
+                    android:textColor="#333333"
+                    android:textSize="16sp"/>
+                <com.google.android.material.materialswitch.MaterialSwitch
+                    android:id="@+id/bluetoothSwitch"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"/>
             </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="12dp">
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Smooth All Patterns"
+                    android:textColor="#333333"
+                    android:textSize="16sp"/>
+                <com.google.android.material.materialswitch.MaterialSwitch
+                    android:id="@+id/smoothSwitch"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"/>
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="16dp">
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Movie Mode"
+                    android:textColor="#333333"
+                    android:textSize="16sp"/>
+                <com.google.android.material.materialswitch.MaterialSwitch
+                    android:id="@+id/movieModeSwitch"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"/>
+            </LinearLayout>
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="#EEEEEE"
+                android:layout_marginBottom="16dp"/>
+
+            <!-- Speed -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="8dp">
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Panning Speed"
+                    android:textColor="#333333"
+                    android:textSize="16sp"/>
+                <TextView
+                    android:id="@+id/speedText"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Speed: 1000ms"
+                    android:textColor="#FFA07A"
+                    android:textStyle="bold"/>
+            </LinearLayout>
+
+            <SeekBar
+                android:id="@+id/speedSeekBar"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:max="30"
+                android:progress="10"
+                android:progressTint="#FFA07A"
+                android:thumbTint="#FFA07A"
+                android:progressBackgroundTint="#EEEEEE"
+                android:layout_marginBottom="16dp"/>
+        </LinearLayout>
+
+        <!-- PATTERNS CARD -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@drawable/bg_card"
+            android:padding="20dp"
+            android:elevation="4dp"
+            android:layout_marginBottom="16dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Select Pattern"
+                android:textColor="#333333"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="16dp"/>
+
+            <RadioGroup
+                android:id="@+id/patternGroup"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <RadioButton
+                    android:id="@+id/radioSmooth"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:text="Smooth"
+                    android:textColor="#333333"
+                    android:buttonTint="#4CAF50"/>
+                <RadioButton
+                    android:id="@+id/radioHard"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:text="Hard Left/Right"
+                    android:textColor="#333333"
+                    android:buttonTint="#FF9800"/>
+                <RadioButton
+                    android:id="@+id/radioWave"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:text="Wave"
+                    android:textColor="#333333"
+                    android:buttonTint="#2196F3"/>
+                <RadioButton
+                    android:id="@+id/radioSubtle"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:text="Subtle"
+                    android:textColor="#333333"
+                    android:buttonTint="#9C27B0"/>
+                <RadioButton
+                    android:id="@+id/radioCrazy"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:text="Crazy"
+                    android:textColor="#333333"
+                    android:buttonTint="#F44336"/>
+                <RadioButton
+                    android:id="@+id/radioCustom"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:text="Custom Pattern"
+                    android:textColor="#333333"
+                    android:buttonTint="#00BCD4"/>
+            </RadioGroup>
+        </LinearLayout>
+<!-- Replace the entire customContainer block with this -->
+<LinearLayout
+    android:id="@+id/customContainer"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@drawable/bg_card"
+    android:padding="20dp"
+    android:elevation="4dp"
+    android:visibility="gone"
+    android:layout_marginBottom="24dp">
+    
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Custom Pattern Editor"
+        android:textSize="18sp"
+        android:textColor="#333333"
+        android:textStyle="bold"
+        android:layout_marginBottom="16dp"/>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Tap the ring to add or remove pan points"
+        android:textSize="14sp"
+        android:textColor="#888888"
+        android:layout_marginBottom="16dp"/>
+    
+    <!-- The Interactive Custom Ring -->
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="300dp"
+        android:layout_marginBottom="16dp">
+        
+        <com.autopan.app.PanRingView
+            android:id="@+id/customPanRingView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+            
+    </FrameLayout>
+    
+    <!-- Quick Presets -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Quick Presets:"
+        android:textSize="14sp"
+        android:textColor="#666666"
+        android:layout_marginBottom="10dp"/>
+    
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:layout_marginBottom="20dp">
+        
+        <Button
+            android:id="@+id/presetSmooth"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Smooth"
+            android:textSize="12sp"
+            android:textColor="#FFFFFF"
+            android:backgroundTint="#4CAF50"
+            android:layout_margin="2dp"/>
+        <Button
+            android:id="@+id/presetBounce"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Bounce"
+            android:textSize="12sp"
+            android:textColor="#FFFFFF"
+            android:backgroundTint="#FF9800"
+            android:layout_margin="2dp"/>
+        <Button
+            android:id="@+id/presetCircle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Circle"
+            android:textSize="12sp"
+            android:textColor="#FFFFFF"
+            android:backgroundTint="#2196F3"
+            android:layout_margin="2dp"/>
+    </LinearLayout>
+    
+    <!-- If you still want sliders for speed, they go here -->
+    <LinearLayout
+        android:id="@+id/slidersContainer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"/>
+</LinearLayout>
             
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Quick Presets:"
                 android:textSize="14sp"
-                android:textColor="#BBBBBB"
+                android:textColor="#666666"
                 android:layout_marginBottom="10dp"/>
             
             <LinearLayout
@@ -321,9 +423,9 @@
                     android:layout_weight="1"
                     android:text="Smooth"
                     android:textSize="12sp"
+                    android:textColor="#FFFFFF"
                     android:backgroundTint="#4CAF50"
                     android:layout_margin="2dp"/>
-                
                 <Button
                     android:id="@+id/presetBounce"
                     android:layout_width="0dp"
@@ -331,9 +433,9 @@
                     android:layout_weight="1"
                     android:text="Bounce"
                     android:textSize="12sp"
+                    android:textColor="#FFFFFF"
                     android:backgroundTint="#FF9800"
                     android:layout_margin="2dp"/>
-                
                 <Button
                     android:id="@+id/presetCircle"
                     android:layout_width="0dp"
@@ -341,9 +443,9 @@
                     android:layout_weight="1"
                     android:text="Circle"
                     android:textSize="12sp"
+                    android:textColor="#FFFFFF"
                     android:backgroundTint="#2196F3"
                     android:layout_margin="2dp"/>
-                
             </LinearLayout>
             
             <LinearLayout
@@ -351,8 +453,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"/>
-            
         </LinearLayout>
-        
+
     </LinearLayout>
 </ScrollView>
