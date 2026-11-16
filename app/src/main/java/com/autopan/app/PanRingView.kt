@@ -13,6 +13,11 @@ class PanRingView @JvmOverloads constructor(
     context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
 ) : View(context, attrs, defStyleAttr) {
 
+    // --- THIS WAS MISSING ---
+    interface OnCustomPatternChangedListener {
+        fun onPatternChanged(angles: List<Float>)
+    }
+
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.FILL
     }
@@ -29,6 +34,9 @@ class PanRingView @JvmOverloads constructor(
 
     var isCustomMode = false
     val customDotAngles = mutableListOf<Float>()
+    
+    // --- THIS WAS MISSING ---
+    var patternChangeListener: OnCustomPatternChangedListener? = null
 
     private val activeColor = Color.parseColor("#FFA07A")
     private val inactiveColor = Color.parseColor("#E0E0E0")
@@ -94,7 +102,6 @@ class PanRingView @JvmOverloads constructor(
         }
     }
 
-    // These are the methods MainActivity needs
     fun startPanAnimation(speedMs: Long = 1000L) {
         if (isAnimating) return
         isAnimating = true
@@ -140,6 +147,9 @@ class PanRingView @JvmOverloads constructor(
                         customDotAngles.sort()
                     }
                     invalidate()
+                    
+                    // --- THIS WAS MISSING ---
+                    patternChangeListener?.onPatternChanged(customDotAngles)
                 }
             }
         }
