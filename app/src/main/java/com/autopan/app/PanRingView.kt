@@ -50,8 +50,13 @@ class PanRingView @JvmOverloads constructor(
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
+        
+        // Force perfect center
         val centerX = width / 2f
-        val centerY = height / 2f + (ringRadius * 0.2f)
+        
+        // We only push the ring down slightly so it doesn't overlap the top bar
+        // If it looks too high or too low, you can adjust this 0.1f multiplier
+        val centerY = height / 2f + (ringRadius * 0.15f) 
 
         if (isCustomMode) {
             drawCustomEditor(canvas, centerX, centerY)
@@ -59,7 +64,6 @@ class PanRingView @JvmOverloads constructor(
             drawSegmentedRing(canvas, centerX, centerY)
         }
     }
-
     private fun drawSegmentedRing(canvas: Canvas, cx: Float, cy: Float) {
         val angleStep = sweepAngle / (numDots - 1)
         for (i in 0 until numDots) {
@@ -109,7 +113,9 @@ class PanRingView @JvmOverloads constructor(
             duration = (numDots - 1) * speedMs
             interpolator = LinearInterpolator()
             repeatCount = ValueAnimator.INFINITE
-            repeatMode = ValueAnimator.RESTART
+            // CHANGE THIS LINE:
+            repeatMode = ValueAnimator.REVERSE 
+            
             addUpdateListener {
                 activeDotIndex = it.animatedValue as Int
                 invalidate()
@@ -117,7 +123,6 @@ class PanRingView @JvmOverloads constructor(
         }
         animator?.start()
     }
-
     fun stopPanAnimation() {
         isAnimating = false
         animator?.cancel()
@@ -128,7 +133,8 @@ class PanRingView @JvmOverloads constructor(
     override fun onTouchEvent(event: MotionEvent): Boolean {
         if (event.action == MotionEvent.ACTION_DOWN && isCustomMode) {
             val cx = width / 2f
-            val cy = height / 2f + (ringRadius * 0.2f)
+            val cy = height / 2f + (ringRadius * 0.1f) // Match onDraw
+            // ... rest of the code
             val x = event.x
             val y = event.y
             val distance = sqrt((x - cx).pow(2) + (y - cy).pow(2))
