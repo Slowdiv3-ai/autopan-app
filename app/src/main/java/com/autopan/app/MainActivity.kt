@@ -12,58 +12,48 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
+import android.view.View
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.RadioButton
 import android.widget.RadioGroup
 import android.widget.SeekBar
-import android.widget.Switch
 import android.widget.TextView
 import android.widget.Toast
+import com.google.android.material.materialswitch.MaterialSwitch
 import java.io.DataOutputStream
+import kotlin.math.*
 
-class MainActivity : Activity() {
+class MainActivity : Activity(), PanRingView.OnCustomPatternChangedListener {
     
+    // UI Components
     private lateinit var toggleButton: Button
     private lateinit var statusText: TextView
     private lateinit var patternGroup: RadioGroup
     private lateinit var speedSeekBar: SeekBar
     private lateinit var speedText: TextView
     private lateinit var customContainer: LinearLayout
-    private lateinit var slidersContainer: LinearLayout
-    private lateinit var bluetoothSwitch: Switch
-    private lateinit var smoothSwitch: Switch
-    private lateinit var movieModeSwitch: Switch
+    private lateinit var bluetoothSwitch: MaterialSwitch
+    private lateinit var smoothSwitch: MaterialSwitch
+    private lateinit var movieModeSwitch: MaterialSwitch
     private lateinit var accessibilityButton: Button
-    private val customSeekBars = mutableListOf<SeekBar>()
-    private val sliderLabels = mutableListOf<TextView>()
+    private lateinit var mainRingView: PanRingView
+    private lateinit var customRingView: PanRingView
     
+    // Logic Variables
     private val handler = Handler(Looper.getMainLooper())
     private var currentSpeed = 1000
     private var currentPattern = "smooth"
-    private var customPattern = arrayOf(
-        "-0.8", "-0.6", "-0.5", "-0.3", "-0.15", "0.0", "0.15",
-        "0.3", "0.5", "0.6", "0.5", "0.3", "0.15", "0.0"
-    )
     private var bluetoothAutoPan = false
     private var smoothAll = true
     private var movieModeEnabled = false
     
-    private val presets = mapOf(
-        "smooth" to arrayOf(
-            "-0.8", "-0.6", "-0.4", "-0.2", "0.0", "0.2", "0.4",
-            "0.6", "0.8", "0.6", "0.4", "0.2", "0.0", "-0.2"
-        ),
-        "bounce" to arrayOf(
-            "-0.8", "-0.6", "-0.3", "0.0", "0.3", "0.6", "0.8",
-            "0.6", "0.3", "0.0", "-0.3", "-0.6", "-0.3", "0.0"
-        ),
-        "circle" to arrayOf(
-            "-0.8", "-0.6", "-0.3", "0.0", "0.3", "0.6", "0.8",
-            "0.6", "0.3", "0.0", "-0.3", "-0.6", "-0.8", "-0.6"
-        )
+    // The custom pattern is now derived from the angles tapped on the ring
+    // Default: Smooth sweep from left (-0.8) to right (+0.8)
+    private var customPattern = arrayOf(
+        "-0.8", "-0.6", "-0.4", "-0.2", "0.0", "0.2", "0.4", "0.6", "0.8"
     )
-    
+
     private val bluetoothReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             when (intent?.action) {
@@ -87,27 +77,42 @@ class MainActivity : Activity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         
+        // Initialize Views
         toggleButton = findViewById(R.id.toggleButton)
         statusText = findViewById(R.id.statusText)
         patternGroup = findViewById(R.id.patternGroup)
         speedSeekBar = findViewById(R.id.speedSeekBar)
         speedText = findViewById(R.id.speedText)
         customContainer = findViewById(R.id.customContainer)
-        slidersContainer = findViewById(R.id.slidersContainer)
         bluetoothSwitch = findViewById(R.id.bluetoothSwitch)
         smoothSwitch = findViewById(R.id.smoothSwitch)
         movieModeSwitch = findViewById(R.id.movieModeSwitch)
         accessibilityButton = findViewById(R.id.accessibilityButton)
+        mainRingView = findViewById(R.id.panRingView)
+        customRingView = findViewById(R.id.customPanRingView)
         
+        // Setup Custom Ring Listener
+        customRingView.patternChangeListener = this
+        customRingView.isCustomMode = true
+        
+        // Load Preferences
         val prefs = getSharedPreferences("pan_settings", Context.MODE_PRIVATE)
         currentPattern = prefs.getString("pattern", "smooth") ?: "smooth"
         currentSpeed = prefs.getInt("speed", 1000)
         bluetoothAutoPan = prefs.getBoolean("bluetooth_auto_pan", false)
         smoothAll = prefs.getBoolean("smooth_all", true)
         movieModeEnabled = prefs.getBoolean("movie_mode", false)
-        val savedCustom = prefs.getString("custom_pattern", "-0.8,-0.6,-0.5,-0.3,-0.15,0.0,0.15,0.3,0.5,0.6,0.5,0.3,0.15,0.0")
-        customPattern = savedCustom?.split(",")?.toTypedArray() ?: customPattern
         
+        // Load Custom Angles from prefs (we will save angles now, not floats)
+        val savedAngles = prefs.getString("custom_angles", "0,45,90,135,180")
+        val angleList = savedAngles?.split(",")?.mapNotNull { it.toFloatOrNull() } ?: listOf(0f,45f,90f,135f,180f)
+        customRingView.customDotAngles.clear()
+        customRingView.customDotAngles.addAll(angleList)
+        
+        // Convert loaded angles to the float array for PanService
+        updatePatternFromAngles(angleList)
+
+        // Update UI State
         when (currentPattern) {
             "hard" -> findViewById<RadioButton>(R.id.radioHard).isChecked = true
             "wave" -> findViewById<RadioButton>(R.id.radioWave).isChecked = true
@@ -122,14 +127,12 @@ class MainActivity : Activity() {
         bluetoothSwitch.isChecked = bluetoothAutoPan
         smoothSwitch.isChecked = smoothAll
         movieModeSwitch.isChecked = movieModeEnabled
+        customContainer.visibility = if (currentPattern == "custom") View.VISIBLE else View.GONE
         
-        createCustomSliders()
-        createGraphDots()
-        customContainer.visibility = if (currentPattern == "custom") LinearLayout.VISIBLE else LinearLayout.GONE
-        
+        // Setup Listeners
         speedSeekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                currentSpeed = progress * 100
+                currentSpeed = (progress + 1) * 100 // Min 100ms
                 speedText.text = "Speed: ${currentSpeed}ms"
                 prefs.edit().putInt("speed", currentSpeed).apply()
             }
@@ -147,7 +150,15 @@ class MainActivity : Activity() {
                 else -> "smooth"
             }
             prefs.edit().putString("pattern", currentPattern).apply()
-            customContainer.visibility = if (currentPattern == "custom") LinearLayout.VISIBLE else LinearLayout.GONE
+            
+            // Toggle UI
+            if (currentPattern == "custom") {
+                customContainer.visibility = View.VISIBLE
+                mainRingView.visibility = View.GONE
+            } else {
+                customContainer.visibility = View.GONE
+                mainRingView.visibility = View.VISIBLE
+            }
         }
         
         bluetoothSwitch.setOnCheckedChangeListener { _, isChecked ->
@@ -163,7 +174,6 @@ class MainActivity : Activity() {
         movieModeSwitch.setOnCheckedChangeListener { _, isChecked ->
             movieModeEnabled = isChecked
             prefs.edit().putBoolean("movie_mode", isChecked).apply()
-            
             if (isChecked) {
                 sendV4ACommand(0x10040, 1)
                 sendV4ACommand(0x10041, 2000)
@@ -174,16 +184,13 @@ class MainActivity : Activity() {
             }
         }
         
-        findViewById<Button>(R.id.presetSmooth).setOnClickListener { applyPreset("smooth") }
-        findViewById<Button>(R.id.presetBounce).setOnClickListener { applyPreset("bounce") }
-        findViewById<Button>(R.id.presetCircle).setOnClickListener { applyPreset("circle") }
+        // Presets
+        findViewById<Button>(R.id.presetSmooth).setOnClickListener { applyPreset(listOf(0f, 45f, 90f, 135f, 180f)) }
+        findViewById<Button>(R.id.presetBounce).setOnClickListener { applyPreset(listOf(0f, 90f, 180f)) }
+        findViewById<Button>(R.id.presetCircle).setOnClickListener { applyPreset(listOf(30f, 90f, 150f)) }
         
         toggleButton.setOnClickListener {
-            if (PanService.isRunning) {
-                stopPanning()
-            } else {
-                startPanning()
-            }
+            if (PanService.isRunning) stopPanning() else startPanning()
         }
         
         accessibilityButton.setOnClickListener {
@@ -199,9 +206,8 @@ class MainActivity : Activity() {
         registerReceiver(bluetoothReceiver, filter)
         
         updateUI()
-        handler.postDelayed({ updateVisual() }, 100)
         
-        // Re-apply movie mode if it was enabled
+        // Re-apply movie mode if needed
         if (movieModeEnabled) {
             handler.postDelayed({
                 sendV4ACommand(0x10040, 1)
@@ -210,138 +216,39 @@ class MainActivity : Activity() {
         }
     }
     
-    private fun createCustomSliders() {
-        slidersContainer.removeAllViews()
-        customSeekBars.clear()
-        sliderLabels.clear()
-        
-        for (i in 0 until 14) {
-            val row = LinearLayout(this).apply {
-                orientation = LinearLayout.HORIZONTAL
-                setPadding(0, 4, 0, 4)
-            }
-            
-            val label = TextView(this).apply {
-                text = "${i + 1}"
-                textSize = 12f
-                setTextColor(Color.WHITE)
-                width = 28
-            }
-            
-            val seekBar = SeekBar(this).apply {
-                max = 160
-                progress = ((customPattern[i].toFloat() + 0.8) * 100).toInt()
-                tag = i
-                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-            }
-            
-            val valueLabel = TextView(this).apply {
-                text = customPattern[i]
-                textSize = 11f
-                setTextColor(Color.CYAN)
-                width = 42
-            }
-            
-            seekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-                override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                    val index = seekBar?.tag as Int
-                    val value = ((progress - 80) / 100f)
-                    customPattern[index] = String.format("%.2f", value)
-                    valueLabel.text = customPattern[index]
-                    updateVisual()
-                    saveCustomPattern()
-                }
-                override fun onStartTrackingTouch(seekBar: SeekBar?) {}
-                override fun onStopTrackingTouch(seekBar: SeekBar?) {}
-            })
-            
-            row.addView(label)
-            row.addView(seekBar)
-            row.addView(valueLabel)
-            
-            slidersContainer.addView(row)
-            customSeekBars.add(seekBar)
-            sliderLabels.add(valueLabel)
-        }
+    // This callback triggers when the user taps a dot on the Custom Ring
+    override fun onPatternChanged(angles: List<Float>) {
+        updatePatternFromAngles(angles)
+        saveCustomAngles(angles)
     }
-    
-    private fun createGraphDots() {
-        val graphArea = findViewById<LinearLayout>(R.id.graphArea)
-        graphArea.removeAllViews()
+
+    // Converts 0-180 degree angles to -0.8 to +0.8 float array for PanService
+    private fun updatePatternFromAngles(angles: List<Float>) {
+        if (angles.isEmpty()) return
         
-        for (i in 0 until 14) {
-            val row = LinearLayout(this).apply {
-                orientation = LinearLayout.HORIZONTAL
-                layoutParams = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    0,
-                    1f
-                )
-                gravity = android.view.Gravity.CENTER_VERTICAL
-            }
-            
-            val dot = TextView(this).apply {
-                text = "${i + 1}"
-                textSize = 10f
-                setTextColor(Color.parseColor("#00BCD4"))
-                tag = i
-            }
-            
-            row.addView(dot)
-            graphArea.addView(row)
+        val newPattern = mutableListOf<String>()
+        for (angle in angles) {
+            // Map 0 -> -0.8 (Left), 90 -> 0.0 (Center), 180 -> +0.8 (Right)
+            // Formula: (angle / 180 * 1.6) - 0.8
+            val value = ((angle / 180f) * 1.6f - 0.8f)
+            newPattern.add(String.format("%.2f", value))
         }
+        customPattern = newPattern.toTypedArray()
     }
-    
-    private fun applyPreset(presetName: String) {
-        val preset = presets[presetName] ?: return
-        customPattern = preset
-        saveCustomPattern()
-        
-        for (i in 0 until customSeekBars.size) {
-            val value = customPattern[i].toFloat()
-            customSeekBars[i].progress = ((value + 0.8) * 100).toInt()
-            sliderLabels[i].text = customPattern[i]
-        }
-        
-        updateVisual()
-    }
-    
-    private fun updateVisual() {
-        val graphArea = findViewById<LinearLayout>(R.id.graphArea)
-        val graphWidth = graphArea.width
-        
-        if (graphWidth > 0) {
-            for (i in 0 until graphArea.childCount) {
-                val row = graphArea.getChildAt(i) as LinearLayout
-                if (row.childCount > 0) {
-                    val dot = row.getChildAt(0) as TextView
-                    val value = customPattern[i].toFloat()
-                    
-                    val position = (value + 0.8) / 1.6
-                    val leftMargin = (position * (graphWidth - 35)).toInt()
-                    
-                    val params = dot.layoutParams as LinearLayout.LayoutParams
-                    params.leftMargin = leftMargin
-                    dot.layoutParams = params
-                    
-                    when {
-                        value < -0.4 -> dot.setTextColor(Color.parseColor("#FF5722"))
-                        value < -0.1 -> dot.setTextColor(Color.parseColor("#FF9800"))
-                        value > 0.4 -> dot.setTextColor(Color.parseColor("#4CAF50"))
-                        value > 0.1 -> dot.setTextColor(Color.parseColor("#8BC34A"))
-                        else -> dot.setTextColor(Color.WHITE)
-                    }
-                }
-            }
-        }
-    }
-    
-    private fun saveCustomPattern() {
-        val values = customPattern.joinToString(",")
+
+    private fun saveCustomAngles(angles: List<Float>) {
+        val angleString = angles.joinToString(",")
         getSharedPreferences("pan_settings", Context.MODE_PRIVATE)
             .edit()
-            .putString("custom_pattern", values)
+            .putString("custom_angles", angleString)
             .apply()
+    }
+
+    private fun applyPreset(angles: List<Float>) {
+        customRingView.customDotAngles.clear()
+        customRingView.customDotAngles.addAll(angles)
+        customRingView.invalidate()
+        onPatternChanged(angles)
     }
     
     private fun sendV4ACommand(param: Int, value: Int) {
@@ -371,7 +278,9 @@ class MainActivity : Activity() {
         handler.postDelayed({
             toggleButton.text = "STOP PAN"
             statusText.text = "Status: ACTIVE"
-            statusText.setTextColor(Color.GREEN)
+            statusText.setTextColor(Color.parseColor("#4CAF50")) // Success Green
+            toggleButton.backgroundTintList = android.content.res.ColorStateList.valueOf(Color.parseColor("#F44336")) // Red for stop
+            mainRingView.startPanAnimation(currentSpeed.toLong())
         }, 500)
     }
     
@@ -383,7 +292,9 @@ class MainActivity : Activity() {
         handler.postDelayed({
             toggleButton.text = "START PAN"
             statusText.text = "Status: OFF"
-            statusText.setTextColor(Color.RED)
+            statusText.setTextColor(Color.parseColor("#FF5252")) // Error Red
+            toggleButton.backgroundTintList = android.content.res.ColorStateList.valueOf(Color.parseColor("#2E2E2E")) // Dark grey for start
+            mainRingView.stopPanAnimation()
         }, 500)
     }
     
@@ -391,11 +302,13 @@ class MainActivity : Activity() {
         if (PanService.isRunning) {
             toggleButton.text = "STOP PAN"
             statusText.text = "Status: ACTIVE"
-            statusText.setTextColor(Color.GREEN)
+            statusText.setTextColor(Color.parseColor("#4CAF50"))
+            toggleButton.backgroundTintList = android.content.res.ColorStateList.valueOf(Color.parseColor("#F44336"))
         } else {
             toggleButton.text = "START PAN"
             statusText.text = "Status: OFF"
-            statusText.setTextColor(Color.RED)
+            statusText.setTextColor(Color.parseColor("#FF5252"))
+            toggleButton.backgroundTintList = android.content.res.ColorStateList.valueOf(Color.parseColor("#2E2E2E"))
         }
     }
     
