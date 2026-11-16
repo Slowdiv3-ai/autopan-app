@@ -20,7 +20,7 @@ import android.widget.RadioGroup
 import android.widget.SeekBar
 import android.widget.TextView
 import android.widget.Toast
-import com.google.android.material.materialswitch.MaterialSwitch
+import android.widget.Switch
 import java.io.DataOutputStream
 import kotlin.math.*
 
@@ -33,9 +33,9 @@ class MainActivity : Activity(), PanRingView.OnCustomPatternChangedListener {
     private lateinit var speedSeekBar: SeekBar
     private lateinit var speedText: TextView
     private lateinit var customContainer: LinearLayout
-    private lateinit var bluetoothSwitch: MaterialSwitch
-    private lateinit var smoothSwitch: MaterialSwitch
-    private lateinit var movieModeSwitch: MaterialSwitch
+    private lateinit var bluetoothSwitch: Switch
+    private lateinit var smoothSwitch: Switch
+    private lateinit var movieModeSwitch: Switch
     private lateinit var accessibilityButton: Button
     private lateinit var mainRingView: PanRingView
     private lateinit var customRingView: PanRingView
