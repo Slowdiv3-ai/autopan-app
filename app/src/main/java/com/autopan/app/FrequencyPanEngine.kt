@@ -67,35 +67,37 @@ class FrequencyPanEngine {
 
                 val buffer = ShortArray(minBufferSize / 2) 
 
-                while (isPlaying) {
+                               while (isPlaying) {
                     val read = audioRecord.read(buffer, 0, buffer.size)
                     if (read > 0) {
-                        // Advance the Pan LFO (Sweep speed: 0.2 Hz = 5 seconds per cycle)
-                        panLfo += 0.2f / sampleRate
+                        // --- TEST TONE GENERATION ---
+                        val freqLow = 440.0 // Low pitch
+                        val freqHigh = 2000.0 // High pitch
+                        var time = System.currentTimeMillis() / 1000.0
+                        
+                        // Advance LFO
+                        panLfo += 0.5f / sampleRate // 0.5Hz sweep (2 seconds per cycle)
                         if (panLfo > 1.0f) panLfo -= 1.0f
 
-                        // Calculate cutoffs
-                        val cutoffL = 200f + (panLfo * 4800f) // 200Hz -> 5000Hz
-                        val cutoffR = 5000f - (panLfo * 4800f) // 5000Hz -> 200Hz
+                        val cutoffL = 200f + (panLfo * 4800f) 
+                        val cutoffR = 5000f - (panLfo * 4800f) 
 
                         val alphaL = (2.0 * PI * cutoffL / sampleRate).toFloat().coerceIn(0.01f, 0.99f)
                         val alphaR = (2.0 * PI * cutoffR / sampleRate).toFloat().coerceIn(0.01f, 0.99f)
 
-                        // Process the audio
                         for (i in 0 until read step 2) {
-                            // Convert 16-bit short to float (-1.0 to 1.0)
-                            val inL = buffer[i] / 32768.0f
-                            val inR = buffer[i + 1] / 32768.0f
+                            // Generate a mix of low and high tones
+                            val signal = (sin(2.0 * PI * freqLow * time) * 0.5 + sin(2.0 * PI * freqHigh * time) * 0.5).toFloat()
+                            
+                            // Apply filters to our generated tone
+                            filterStateL += alphaL * (signal - filterStateL)
+                            filterStateR += alphaR * (signal - filterStateR)
 
-                            // Apply filters to the incoming stereo mix
-                            filterStateL += alphaL * (inL - filterStateL)
-                            filterStateR += alphaR * (inR - filterStateR)
-
-                            // Convert back to 16-bit and write to output
                             buffer[i] = (filterStateL * 32767).toInt().toShort()
                             buffer[i + 1] = (filterStateR * 32767).toInt().toShort()
+                            
+                            time += 1.0 / sampleRate
                         }
-                        
                         audioTrack.write(buffer, 0, read)
                     }
                 }
