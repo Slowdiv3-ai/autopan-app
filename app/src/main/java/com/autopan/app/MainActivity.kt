@@ -18,9 +18,9 @@ import android.widget.LinearLayout
 import android.widget.RadioButton
 import android.widget.RadioGroup
 import android.widget.SeekBar
+import android.widget.Switch
 import android.widget.TextView
 import android.widget.Toast
-import android.widget.Switch
 import java.io.DataOutputStream
 import kotlin.math.*
 
@@ -49,7 +49,6 @@ class MainActivity : Activity(), PanRingView.OnCustomPatternChangedListener {
     private var movieModeEnabled = false
     
     // The custom pattern is now derived from the angles tapped on the ring
-    // Default: Smooth sweep from left (-0.8) to right (+0.8)
     private var customPattern = arrayOf(
         "-0.8", "-0.6", "-0.4", "-0.2", "0.0", "0.2", "0.4", "0.6", "0.8"
     )
@@ -103,7 +102,7 @@ class MainActivity : Activity(), PanRingView.OnCustomPatternChangedListener {
         smoothAll = prefs.getBoolean("smooth_all", true)
         movieModeEnabled = prefs.getBoolean("movie_mode", false)
         
-        // Load Custom Angles from prefs (we will save angles now, not floats)
+        // Load Custom Angles from prefs
         val savedAngles = prefs.getString("custom_angles", "0,45,90,135,180")
         val angleList = savedAngles?.split(",")?.mapNotNull { it.toFloatOrNull() } ?: listOf(0f,45f,90f,135f,180f)
         customRingView.customDotAngles.clear()
@@ -216,20 +215,17 @@ class MainActivity : Activity(), PanRingView.OnCustomPatternChangedListener {
         }
     }
     
-    // This callback triggers when the user taps a dot on the Custom Ring
     override fun onPatternChanged(angles: List<Float>) {
         updatePatternFromAngles(angles)
         saveCustomAngles(angles)
     }
 
-    // Converts 0-180 degree angles to -0.8 to +0.8 float array for PanService
     private fun updatePatternFromAngles(angles: List<Float>) {
         if (angles.isEmpty()) return
         
         val newPattern = mutableListOf<String>()
         for (angle in angles) {
             // Map 0 -> -0.8 (Left), 90 -> 0.0 (Center), 180 -> +0.8 (Right)
-            // Formula: (angle / 180 * 1.6) - 0.8
             val value = ((angle / 180f) * 1.6f - 0.8f)
             newPattern.add(String.format("%.2f", value))
         }
@@ -278,9 +274,12 @@ class MainActivity : Activity(), PanRingView.OnCustomPatternChangedListener {
         handler.postDelayed({
             toggleButton.text = "STOP PAN"
             statusText.text = "Status: ACTIVE"
-            statusText.setTextColor(Color.parseColor("#4CAF50")) // Success Green
-            toggleButton.backgroundTintList = android.content.res.ColorStateList.valueOf(Color.parseColor("#F44336")) // Red for stop
-            mainRingView.startPanAnimation(currentSpeed.toLong())
+            statusText.setTextColor(Color.parseColor("#4CAF50")) 
+            toggleButton.backgroundTintList = android.content.res.ColorStateList.valueOf(Color.parseColor("#F44336"))
+            
+            // Start the new wave animation
+            mainRingView.startPanAnimation()
+            
         }, 500)
     }
     
@@ -292,9 +291,12 @@ class MainActivity : Activity(), PanRingView.OnCustomPatternChangedListener {
         handler.postDelayed({
             toggleButton.text = "START PAN"
             statusText.text = "Status: OFF"
-            statusText.setTextColor(Color.parseColor("#FF5252")) // Error Red
-            toggleButton.backgroundTintList = android.content.res.ColorStateList.valueOf(Color.parseColor("#2E2E2E")) // Dark grey for start
+            statusText.setTextColor(Color.parseColor("#FF5252"))
+            toggleButton.backgroundTintList = android.content.res.ColorStateList.valueOf(Color.parseColor("#2E2E2E"))
+            
+            // Stop the wave animation
             mainRingView.stopPanAnimation()
+            
         }, 500)
     }
     
@@ -330,7 +332,13 @@ class MainActivity : Activity(), PanRingView.OnCustomPatternChangedListener {
     
     override fun onResume() {
         super.onResume()
-        handler.postDelayed({ updateUI() }, 300)
+        // Restore UI state and restart animation if service is running
+        handler.postDelayed({ 
+            updateUI() 
+            if (PanService.isRunning) {
+                mainRingView.startPanAnimation()
+            }
+        }, 300)
     }
     
     override fun onDestroy() {
