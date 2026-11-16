@@ -2,7 +2,6 @@ package com.autopan.app
 
 import android.media.AudioAttributes
 import android.media.AudioFormat
-import android.media.AudioManager
 import android.media.AudioRecord
 import android.media.AudioTrack
 import android.media.MediaRecorder
@@ -103,14 +102,23 @@ class FrequencyPanEngine {
             } catch (e: Exception) {
                 e.printStackTrace()
             } finally {
-                isPlaying = false
-                audioRecord.stop()
+                // ONLY stop/release if the state is initialized
+                if (audioRecord.state == AudioRecord.STATE_INITIALIZED) {
+                    audioRecord.stop()
+                }
                 audioRecord.release()
-                audioTrack.stop()
+                
+                try {
+                    if (audioTrack.playState == AudioTrack.PLAYSTATE_PLAYING) {
+                        audioTrack.stop()
+                    }
+                } catch (e: Exception) {}
                 audioTrack.release()
+                
+                isPlaying = false
             }
         }
-    }
+    } // <--- THIS WAS MISSING
 
     fun stop() {
         isPlaying = false
