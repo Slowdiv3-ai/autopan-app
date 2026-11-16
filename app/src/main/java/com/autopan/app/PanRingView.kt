@@ -13,7 +13,6 @@ class PanRingView @JvmOverloads constructor(
     context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
 ) : View(context, attrs, defStyleAttr) {
 
-    // --- THIS WAS MISSING ---
     interface OnCustomPatternChangedListener {
         fun onPatternChanged(angles: List<Float>)
     }
@@ -22,24 +21,26 @@ class PanRingView @JvmOverloads constructor(
         style = Paint.Style.FILL
     }
 
-    private var numDots = 10
-    private var startAngle = 180f
-    private var sweepAngle = 180f
+    // Ring Settings
+    private var numDots = 15 // More dots for a smoother wave
+    private var startAngle = 160f
+    private var sweepAngle = 220f
     private var dotRadius = 40f
     private var ringRadius = 300f
 
-    private var activeDotIndex = -1
-    private var isAnimating = false
+    // Animation Settings
     private var animator: ValueAnimator? = null
+    private var animProgress = 0f 
+    private var isAnimating = false
 
+    // Custom Mode
     var isCustomMode = false
     val customDotAngles = mutableListOf<Float>()
-    
-    // --- THIS WAS MISSING ---
     var patternChangeListener: OnCustomPatternChangedListener? = null
 
+    // Colors
     private val activeColor = Color.parseColor("#FFA07A")
-    private val inactiveColor = Color.parseColor("#E0E0E0")
+    private val inactiveColor = Color.parseColor("#F0F0F0") // Faint grey for inactive dots
     private val glowColor = Color.parseColor("#FF6347")
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
@@ -50,39 +51,47 @@ class PanRingView @JvmOverloads constructor(
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
-        
-        // Force perfect center
         val centerX = width / 2f
-        
-        // We only push the ring down slightly so it doesn't overlap the top bar
-        // If it looks too high or too low, you can adjust this 0.1f multiplier
+        // Shift down slightly to frame the center image
         val centerY = height / 2f + (ringRadius * 0.15f) 
 
         if (isCustomMode) {
             drawCustomEditor(canvas, centerX, centerY)
         } else {
-            drawSegmentedRing(canvas, centerX, centerY)
+            drawWaveRing(canvas, centerX, centerY)
         }
     }
-    private fun drawSegmentedRing(canvas: Canvas, cx: Float, cy: Float) {
+
+    private fun drawWaveRing(canvas: Canvas, cx: Float, cy: Float) {
         val angleStep = sweepAngle / (numDots - 1)
+        
         for (i in 0 until numDots) {
             val angle = startAngle + (i * angleStep)
             val rad = Math.toRadians(angle.toDouble())
+            
+            // Base position
             val x = cx + ringRadius * cos(rad).toFloat()
             val y = cy + ringRadius * sin(rad).toFloat()
 
-            if (i == activeDotIndex) {
-                paint.color = glowColor
-                paint.setShadowLayer(20f, 0f, 0f, activeColor)
-                canvas.drawCircle(x, y, dotRadius * 1.2f, paint)
-                paint.clearShadowLayer()
-            } else if (i < activeDotIndex) {
+            // Calculate wave effect based on animation progress and dot index
+            // This creates a sine wave that moves across the dots
+            val waveValue = sin((i.toFloat() / numDots * 2 * PI) - (animProgress * 2 * PI)).toFloat()
+            
+            // Scale dot size and color based on wave
+            val scale = 1f + (waveValue * 0.4f) // Dots grow and shrink
+            val alpha = 100 + ((waveValue + 1) / 2 * 155).toInt() // Fade in and out
+
+            if (isAnimating) {
                 paint.color = activeColor
-                canvas.drawCircle(x, y, dotRadius, paint)
+                paint.alpha = alpha
+                paint.setShadowLayer(15f * scale, 0f, 0f, glowColor)
+                canvas.drawCircle(x, y, dotRadius * scale, paint)
+                paint.clearShadowLayer()
             } else {
+                // Static state when not panning
                 paint.color = inactiveColor
-                canvas.drawCircle(x, y, dotRadius, paint)
+                paint.alpha = 255
+                canvas.drawCircle(x, y, dotRadius * 0.8f, paint)
             }
         }
     }
@@ -93,48 +102,49 @@ class PanRingView @JvmOverloads constructor(
         paint.strokeWidth = dotRadius * 1.5f
         paint.strokeCap = Paint.Cap.ROUND
         val rect = RectF(cx - ringRadius, cy - ringRadius, cx + ringRadius, cy + ringRadius)
-        canvas.drawArc(rect, 180f, 180f, false, paint)
+        canvas.drawArc(rect, startAngle, sweepAngle, false, paint)
         paint.style = Paint.Style.FILL
 
         for (angle in customDotAngles) {
-            val canvasAngle = angle + 180f
+            val canvasAngle = angle + startAngle
             val rad = Math.toRadians(canvasAngle.toDouble())
             val x = cx + ringRadius * cos(rad).toFloat()
             val y = cy + ringRadius * sin(rad).toFloat()
             paint.color = activeColor
+            paint.alpha = 255
             canvas.drawCircle(x, y, dotRadius, paint)
         }
     }
 
-    fun startPanAnimation(speedMs: Long = 1000L) {
+    fun startPanAnimation() {
         if (isAnimating) return
         isAnimating = true
-        animator = ValueAnimator.ofInt(0, numDots - 1).apply {
-            duration = (numDots - 1) * speedMs
+        
+        animator = ValueAnimator.ofFloat(0f, 1f).apply {
+            duration = 2000L // Speed of the wave
             interpolator = LinearInterpolator()
             repeatCount = ValueAnimator.INFINITE
-            // CHANGE THIS LINE:
-            repeatMode = ValueAnimator.REVERSE 
+            repeatMode = ValueAnimator.RESTART
             
             addUpdateListener {
-                activeDotIndex = it.animatedValue as Int
+                animProgress = it.animatedValue as Float
                 invalidate()
             }
         }
         animator?.start()
     }
+
     fun stopPanAnimation() {
         isAnimating = false
         animator?.cancel()
-        activeDotIndex = -1
+        animProgress = 0f
         invalidate()
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
         if (event.action == MotionEvent.ACTION_DOWN && isCustomMode) {
             val cx = width / 2f
-            val cy = height / 2f + (ringRadius * 0.1f) // Match onDraw
-            // ... rest of the code
+            val cy = height / 2f + (ringRadius * 0.15f)
             val x = event.x
             val y = event.y
             val distance = sqrt((x - cx).pow(2) + (y - cy).pow(2))
@@ -143,8 +153,9 @@ class PanRingView @JvmOverloads constructor(
                 var angle = Math.toDegrees(atan2((y - cy).toDouble(), (x - cx).toDouble())).toFloat()
                 if (angle < 0) angle += 360
                 
-                if (angle in 180f..360f) {
-                    val mappedAngle = angle - 180f
+                // We only care about the top half (160 to 380)
+                if (angle in 160f..380f) {
+                    val mappedAngle = angle - 160f
                     val existingIndex = customDotAngles.indexOfFirst { abs(it - mappedAngle) < 15f }
                     if (existingIndex != -1) {
                         customDotAngles.removeAt(existingIndex)
@@ -153,8 +164,6 @@ class PanRingView @JvmOverloads constructor(
                         customDotAngles.sort()
                     }
                     invalidate()
-                    
-                    // --- THIS WAS MISSING ---
                     patternChangeListener?.onPatternChanged(customDotAngles)
                 }
             }
