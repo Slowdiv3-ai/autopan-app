@@ -48,6 +48,9 @@ class MainActivity : Activity(), PanRingView.OnCustomPatternChangedListener {
     private var smoothAll = true
     private var movieModeEnabled = false
     
+    // The Frequency Engine
+    private var frequencyEngine: FrequencyPanEngine? = null
+    
     // The custom pattern is now derived from the angles tapped on the ring
     private var customPattern = arrayOf(
         "-0.8", "-0.6", "-0.4", "-0.2", "0.0", "0.2", "0.4", "0.6", "0.8"
@@ -173,12 +176,38 @@ class MainActivity : Activity(), PanRingView.OnCustomPatternChangedListener {
         movieModeSwitch.setOnCheckedChangeListener { _, isChecked ->
             movieModeEnabled = isChecked
             prefs.edit().putBoolean("movie_mode", isChecked).apply()
+            
             if (isChecked) {
-                sendV4ACommand(0x10040, 1)
-                sendV4ACommand(0x10041, 2000)
-                Toast.makeText(this, "Movie Mode ON", Toast.LENGTH_SHORT).show()
+                // 1. Stop standard volume panning
+                if (PanService.isRunning) {
+                    stopPanning()
+                }
+                executeRootCommand("settings put system master_balance 0.0")
+
+                // 2. Grant Audio Record permission via root (SELinux bypass for REMOTE_SUBMIX)
+                executeRootCommand("appops set com.autopan.app RECORD_AUDIO allow")
+
+                // 3. Start the frequency engine!
+                frequencyEngine = FrequencyPanEngine()
+                frequencyEngine?.start()
+                
+                // Disable UI elements that don't apply to Movie Mode
+                patternGroup.isEnabled = false
+                toggleButton.isEnabled = false
+                toggleButton.alpha = 0.5f
+                
+                Toast.makeText(this, "Movie Mode ON (Frequency Pan Active)", Toast.LENGTH_SHORT).show()
+                
             } else {
-                sendV4ACommand(0x10040, 0)
+                // 1. Stop the frequency engine
+                frequencyEngine?.stop()
+                frequencyEngine = null
+                
+                // 2. Re-enable UI
+                patternGroup.isEnabled = true
+                toggleButton.isEnabled = true
+                toggleButton.alpha = 1.0f
+                
                 Toast.makeText(this, "Movie Mode OFF", Toast.LENGTH_SHORT).show()
             }
         }
@@ -206,11 +235,17 @@ class MainActivity : Activity(), PanRingView.OnCustomPatternChangedListener {
         
         updateUI()
         
-        // Re-apply movie mode if needed
+        // Re-apply movie mode if it was left on
         if (movieModeEnabled) {
             handler.postDelayed({
-                sendV4ACommand(0x10040, 1)
-                sendV4ACommand(0x10041, 2000)
+                if (PanService.isRunning) stopPanning()
+                executeRootCommand("settings put system master_balance 0.0")
+                executeRootCommand("appops set com.autopan.app RECORD_AUDIO allow")
+                frequencyEngine = FrequencyPanEngine()
+                frequencyEngine?.start()
+                patternGroup.isEnabled = false
+                toggleButton.isEnabled = false
+                toggleButton.alpha = 0.5f
             }, 1000)
         }
     }
@@ -245,22 +280,6 @@ class MainActivity : Activity(), PanRingView.OnCustomPatternChangedListener {
         customRingView.customDotAngles.addAll(angles)
         customRingView.invalidate()
         onPatternChanged(angles)
-    }
-    
-    private fun sendV4ACommand(param: Int, value: Int) {
-        Thread {
-            try {
-                val process = Runtime.getRuntime().exec("su")
-                val outputStream = DataOutputStream(process.outputStream)
-                outputStream.writeBytes("settings put system viper4android_param_${param} $value\n")
-                outputStream.writeBytes("exit\n")
-                outputStream.flush()
-                process.waitFor()
-                outputStream.close()
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-        }.start()
     }
     
     private fun startPanning() {
@@ -343,6 +362,10 @@ class MainActivity : Activity(), PanRingView.OnCustomPatternChangedListener {
     
     override fun onDestroy() {
         super.onDestroy()
+        // Make sure the audio engine stops if the app is closed
+        frequencyEngine?.stop()
+        frequencyEngine = null
+        
         try {
             unregisterReceiver(bluetoothReceiver)
         } catch (e: Exception) {
