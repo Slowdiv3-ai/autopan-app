@@ -149,7 +149,8 @@
                 <com.google.android.material.materialswitch.MaterialSwitch
                     android:id="@+id/bluetoothSwitch"
                     android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"/>
+                    android:layout_height="wrap_content"
+                    android:text="" />
             </LinearLayout>
 
             <LinearLayout
@@ -168,7 +169,8 @@
                 <com.google.android.material.materialswitch.MaterialSwitch
                     android:id="@+id/smoothSwitch"
                     android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"/>
+                    android:layout_height="wrap_content"
+                    android:text="" />
             </LinearLayout>
 
             <LinearLayout
@@ -187,7 +189,8 @@
                 <com.google.android.material.materialswitch.MaterialSwitch
                     android:id="@+id/movieModeSwitch"
                     android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"/>
+                    android:layout_height="wrap_content"
+                    android:text="" />
             </LinearLayout>
 
             <View
