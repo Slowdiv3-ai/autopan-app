@@ -65,7 +65,7 @@
                 android:layout_width="140dp"
                 android:layout_height="140dp"
                 android:layout_gravity="center"
-                android:src="@android:drawable/pov_person"
+                android:src="@drawable/pov_person"
                 android:background="@drawable/bg_icon_circle"
                 android:clipToOutline="true"
                 android:scaleType="centerCrop"/>
