@@ -146,11 +146,10 @@
                     android:text="Bluetooth Auto-Pan"
                     android:textColor="#333333"
                     android:textSize="16sp"/>
-                <com.google.android.material.materialswitch.MaterialSwitch
+                <Switch
                     android:id="@+id/bluetoothSwitch"
                     android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="" />
+                    android:layout_height="wrap_content" />
             </LinearLayout>
 
             <LinearLayout
@@ -166,11 +165,10 @@
                     android:text="Smooth All Patterns"
                     android:textColor="#333333"
                     android:textSize="16sp"/>
-                <com.google.android.material.materialswitch.MaterialSwitch
+                <Switch
                     android:id="@+id/smoothSwitch"
                     android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="" />
+                    android:layout_height="wrap_content" />
             </LinearLayout>
 
             <LinearLayout
@@ -186,11 +184,10 @@
                     android:text="Movie Mode"
                     android:textColor="#333333"
                     android:textSize="16sp"/>
-                <com.google.android.material.materialswitch.MaterialSwitch
+                <Switch
                     android:id="@+id/movieModeSwitch"
                     android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="" />
+                    android:layout_height="wrap_content" />
             </LinearLayout>
 
             <View
