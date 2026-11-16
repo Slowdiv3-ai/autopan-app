@@ -65,7 +65,7 @@
                 android:layout_width="140dp"
                 android:layout_height="140dp"
                 android:layout_gravity="center"
-                android:src="@drawable/ic_launcher_foreground"
+                android:src="@android:drawable/ic_menu_camera"
                 android:background="@drawable/bg_icon_circle"
                 android:clipToOutline="true"
                 android:scaleType="centerCrop"/>
